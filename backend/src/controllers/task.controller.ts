@@ -1,11 +1,11 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { taskService } from '../services/task.service';
 import { createTaskSchema, updateTaskSchema, taskQuerySchema } from '../validators/schemas';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AuthRequest } from '../middleware/auth';
 
 export class TaskController {
-    createTask = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    createTask = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const data = createTaskSchema.parse(req.body);
         const task = await taskService.createTask(userId, data);
@@ -17,7 +17,7 @@ export class TaskController {
         });
     });
 
-    getTasks = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getTasks = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const query = taskQuerySchema.parse(req.query);
         const result = await taskService.getTasks(userId, query);
@@ -28,10 +28,10 @@ export class TaskController {
         });
     });
 
-    getTaskById = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getTaskById = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { taskId } = req.params;
-        const task = await taskService.getTaskById(userId, taskId);
+        const task = await taskService.getTaskById(userId, taskId as string);
 
         res.status(200).json({
             success: true,
@@ -39,7 +39,7 @@ export class TaskController {
         });
     });
 
-    getTodayTasks = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getTodayTasks = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const tasks = await taskService.getTodayTasks(userId);
 
@@ -49,7 +49,7 @@ export class TaskController {
         });
     });
 
-    getActiveTask = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getActiveTask = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const activeTask = await taskService.getActiveTask(userId);
 
@@ -59,11 +59,11 @@ export class TaskController {
         });
     });
 
-    updateTask = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    updateTask = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { taskId } = req.params;
         const data = updateTaskSchema.parse(req.body);
-        const task = await taskService.updateTask(userId, taskId, data);
+        const task = await taskService.updateTask(userId, taskId as string, data);
 
         res.status(200).json({
             success: true,
@@ -72,10 +72,10 @@ export class TaskController {
         });
     });
 
-    deleteTask = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    deleteTask = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { taskId } = req.params;
-        const result = await taskService.deleteTask(userId, taskId);
+        const result = await taskService.deleteTask(userId, taskId as string);
 
         res.status(200).json({
             success: true,
@@ -83,7 +83,7 @@ export class TaskController {
         });
     });
 
-    bulkUpdateStatus = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    bulkUpdateStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { taskIds, status } = req.body;
         const result = await taskService.bulkUpdateStatus(userId, taskIds, status);
@@ -95,7 +95,7 @@ export class TaskController {
         });
     });
 
-    getTaskStats = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getTaskStats = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { startDate, endDate } = req.query;
 

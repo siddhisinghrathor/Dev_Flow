@@ -1,6 +1,6 @@
 import { prisma } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
-import { StartTimerInput, UpdateTimerInput } from '../validators/schemas';
+import { StartTimerInput } from '../validators/schemas';
 import { activityLogService } from './activityLog.service';
 
 export class TimerService {

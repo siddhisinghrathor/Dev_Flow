@@ -1,10 +1,10 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { analyticsService } from '../services/analytics.service';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AuthRequest } from '../middleware/auth';
 
 export class AnalyticsController {
-    getDashboardStats = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getDashboardStats = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const stats = await analyticsService.getDashboardStats(userId);
 
@@ -14,7 +14,7 @@ export class AnalyticsController {
         });
     });
 
-    getHeatmapData = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getHeatmapData = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const year = parseInt(req.query.year as string) || new Date().getFullYear();
         const heatmap = await analyticsService.getHeatmapData(userId, year);
@@ -25,7 +25,7 @@ export class AnalyticsController {
         });
     });
 
-    getProductivityTrends = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getProductivityTrends = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const days = parseInt(req.query.days as string) || 30;
         const trends = await analyticsService.getProductivityTrends(userId, days);
@@ -36,7 +36,7 @@ export class AnalyticsController {
         });
     });
 
-    getCategoryBreakdown = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getCategoryBreakdown = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { startDate, endDate } = req.query;
 
@@ -52,7 +52,7 @@ export class AnalyticsController {
         });
     });
 
-    getWeeklySummary = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getWeeklySummary = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const summary = await analyticsService.getWeeklySummary(userId);
 

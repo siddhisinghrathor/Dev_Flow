@@ -160,13 +160,13 @@ export class AuthService {
 
     private generateAccessToken(userId: string): string {
         return jwt.sign({ userId }, config.jwt.secret, {
-            expiresIn: config.jwt.expiresIn,
+            expiresIn: config.jwt.expiresIn as any,
         });
     }
 
     private generateRefreshToken(userId: string): string {
         return jwt.sign({ userId }, config.jwt.refreshSecret, {
-            expiresIn: config.jwt.refreshExpiresIn,
+            expiresIn: config.jwt.refreshExpiresIn as any,
         });
     }
 

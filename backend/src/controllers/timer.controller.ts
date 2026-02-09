@@ -1,11 +1,11 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { timerService } from '../services/timer.service';
 import { startTimerSchema } from '../validators/schemas';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AuthRequest } from '../middleware/auth';
 
 export class TimerController {
-    startTimer = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    startTimer = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const data = startTimerSchema.parse(req.body);
         const timer = await timerService.startTimer(userId, data);
@@ -16,7 +16,7 @@ export class TimerController {
         });
     });
 
-    getActiveTimer = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getActiveTimer = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const timer = await timerService.getActiveTimer(userId);
 
@@ -26,10 +26,10 @@ export class TimerController {
         });
     });
 
-    pauseTimer = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    pauseTimer = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { timerId } = req.params;
-        const timer = await timerService.pauseTimer(userId, timerId);
+        const timer = await timerService.pauseTimer(userId, timerId as string);
 
         res.status(200).json({
             success: true,
@@ -37,10 +37,10 @@ export class TimerController {
         });
     });
 
-    resumeTimer = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    resumeTimer = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { timerId } = req.params;
-        const timer = await timerService.resumeTimer(userId, timerId);
+        const timer = await timerService.resumeTimer(userId, timerId as string);
 
         res.status(200).json({
             success: true,
@@ -48,11 +48,11 @@ export class TimerController {
         });
     });
 
-    stopTimer = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    stopTimer = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { timerId } = req.params;
         const { completeTask } = req.body;
-        const timer = await timerService.stopTimer(userId, timerId, completeTask);
+        const timer = await timerService.stopTimer(userId, timerId as string, completeTask);
 
         res.status(200).json({
             success: true,
@@ -60,7 +60,7 @@ export class TimerController {
         });
     });
 
-    getHistory = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getHistory = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { taskId } = req.query;
         const history = await timerService.getTimerHistory(userId, taskId as string);
@@ -71,7 +71,7 @@ export class TimerController {
         });
     });
 
-    getStats = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getStats = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { startDate, endDate } = req.query;
         const stats = await timerService.getTimerStats(

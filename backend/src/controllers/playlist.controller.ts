@@ -1,11 +1,11 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { playlistService } from '../services/playlist.service';
 import { createPlaylistSchema, updatePlaylistSchema, createTaskSchema } from '../validators/schemas';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AuthRequest } from '../middleware/auth';
 
 export class PlaylistController {
-    createPlaylist = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    createPlaylist = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const data = createPlaylistSchema.parse(req.body);
         const playlist = await playlistService.createPlaylist(userId, data);
@@ -17,7 +17,7 @@ export class PlaylistController {
         });
     });
 
-    getPlaylists = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getPlaylists = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const playlists = await playlistService.getPlaylists(userId);
 
@@ -27,10 +27,10 @@ export class PlaylistController {
         });
     });
 
-    getPlaylistById = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getPlaylistById = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { playlistId } = req.params;
-        const playlist = await playlistService.getPlaylistById(userId, playlistId);
+        const playlist = await playlistService.getPlaylistById(userId, playlistId as string);
 
         res.status(200).json({
             success: true,
@@ -38,11 +38,11 @@ export class PlaylistController {
         });
     });
 
-    updatePlaylist = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    updatePlaylist = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { playlistId } = req.params;
         const data = updatePlaylistSchema.parse(req.body);
-        const playlist = await playlistService.updatePlaylist(userId, playlistId, data);
+        const playlist = await playlistService.updatePlaylist(userId, playlistId as string, data);
 
         res.status(200).json({
             success: true,
@@ -50,10 +50,10 @@ export class PlaylistController {
         });
     });
 
-    deletePlaylist = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    deletePlaylist = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { playlistId } = req.params;
-        await playlistService.deletePlaylist(userId, playlistId);
+        await playlistService.deletePlaylist(userId, playlistId as string);
 
         res.status(200).json({
             success: true,
@@ -61,11 +61,11 @@ export class PlaylistController {
         });
     });
 
-    addTask = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    addTask = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { playlistId } = req.params;
         const data = createTaskSchema.parse(req.body);
-        const task = await playlistService.addTaskToPlaylist(userId, playlistId, data);
+        const task = await playlistService.addTaskToPlaylist(userId, playlistId as string, data);
 
         res.status(201).json({
             success: true,
@@ -73,10 +73,10 @@ export class PlaylistController {
         });
     });
 
-    removeTask = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    removeTask = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { playlistId, taskId } = req.params;
-        await playlistService.removeTaskFromPlaylist(userId, playlistId, taskId);
+        await playlistService.removeTaskFromPlaylist(userId, playlistId as string, taskId as string);
 
         res.status(200).json({
             success: true,
@@ -84,11 +84,11 @@ export class PlaylistController {
         });
     });
 
-    clonePlaylist = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    clonePlaylist = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { playlistId } = req.params;
         const { newTitle } = req.body;
-        const playlist = await playlistService.clonePlaylist(userId, playlistId, newTitle);
+        const playlist = await playlistService.clonePlaylist(userId, playlistId as string, newTitle);
 
         res.status(201).json({
             success: true,
@@ -96,10 +96,10 @@ export class PlaylistController {
         });
     });
 
-    getProgress = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getProgress = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { playlistId } = req.params;
-        const progress = await playlistService.getPlaylistProgress(userId, playlistId);
+        const progress = await playlistService.getPlaylistProgress(userId, playlistId as string);
 
         res.status(200).json({
             success: true,

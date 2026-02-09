@@ -65,12 +65,15 @@ If you see database connection errors:
 2. Check if PostgreSQL container is up: `docker-compose ps`
 3. Verify DATABASE_URL in `.env` matches your setup
 
-### Port Already in Use
+### Troubleshooting
 
-If port 5000 is already in use:
+#### Port Already in Use
 
-1. Change PORT in `.env` to another port (e.g., 5001)
-2. Restart the server
+The default configuration uses ports **5433** (PostgreSQL) and **6380** (Redis) to avoid conflicts with local installations.
+
+If you detailed need to change them further:
+1. Update `docker-compose.yml`
+2. Update `.env` to match the new ports
 
 ### Prisma Client Not Generated
 

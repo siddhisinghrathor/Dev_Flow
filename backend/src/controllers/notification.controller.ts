@@ -1,11 +1,11 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { notificationService } from '../services/notification.service';
 import { createNotificationSchema, markNotificationReadSchema } from '../validators/schemas';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AuthRequest } from '../middleware/auth';
 
 export class NotificationController {
-    createNotification = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    createNotification = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const data = createNotificationSchema.parse(req.body);
         const notification = await notificationService.createNotification(userId, data);
@@ -16,7 +16,7 @@ export class NotificationController {
         });
     });
 
-    getNotifications = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getNotifications = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const unreadOnly = req.query.unread === 'true';
         const limit = req.query.limit ? Number(req.query.limit) : 50;
@@ -29,7 +29,7 @@ export class NotificationController {
         });
     });
 
-    markAsRead = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    markAsRead = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { notificationIds } = markNotificationReadSchema.parse(req.body);
         const result = await notificationService.markAsRead(userId, notificationIds);
@@ -40,7 +40,7 @@ export class NotificationController {
         });
     });
 
-    deleteNotification = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    deleteNotification = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { notificationId } = req.params;
         const result = await notificationService.deleteNotification(userId, notificationId as string);

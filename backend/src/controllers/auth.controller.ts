@@ -1,11 +1,11 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { authService } from '../services/auth.service';
 import { registerSchema, loginSchema, refreshTokenSchema } from '../validators/schemas';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AuthRequest } from '../middleware/auth';
 
 export class AuthController {
-    register = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    register = asyncHandler(async (req: Request, res: Response) => {
         const data = registerSchema.parse(req.body);
         const result = await authService.register(data);
 
@@ -16,7 +16,7 @@ export class AuthController {
         });
     });
 
-    login = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    login = asyncHandler(async (req: Request, res: Response) => {
         const data = loginSchema.parse(req.body);
         const result = await authService.login(data);
 
@@ -27,7 +27,7 @@ export class AuthController {
         });
     });
 
-    refreshToken = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    refreshToken = asyncHandler(async (req: Request, res: Response) => {
         const { refreshToken } = refreshTokenSchema.parse(req.body);
         const result = await authService.refreshAccessToken(refreshToken);
 
@@ -38,7 +38,7 @@ export class AuthController {
         });
     });
 
-    logout = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    logout = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const refreshToken = req.body.refreshToken;
 
@@ -50,7 +50,7 @@ export class AuthController {
         });
     });
 
-    getCurrentUser = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getCurrentUser = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const user = await authService.getCurrentUser(userId);
 

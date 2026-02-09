@@ -1,11 +1,11 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { goalService } from '../services/goal.service';
 import { createGoalSchema, updateGoalSchema } from '../validators/schemas';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AuthRequest } from '../middleware/auth';
 
 export class GoalController {
-    createGoal = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    createGoal = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const data = createGoalSchema.parse(req.body);
         const goal = await goalService.createGoal(userId, data);
@@ -17,7 +17,7 @@ export class GoalController {
         });
     });
 
-    getGoals = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getGoals = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const includeCompleted = req.query.includeCompleted === 'true';
         const goals = await goalService.getGoals(userId, includeCompleted);
@@ -28,10 +28,10 @@ export class GoalController {
         });
     });
 
-    getGoalById = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getGoalById = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { goalId } = req.params;
-        const goal = await goalService.getGoalById(userId, goalId);
+        const goal = await goalService.getGoalById(userId, goalId as string);
 
         res.status(200).json({
             success: true,
@@ -39,11 +39,11 @@ export class GoalController {
         });
     });
 
-    updateGoal = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    updateGoal = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { goalId } = req.params;
         const data = updateGoalSchema.parse(req.body);
-        const goal = await goalService.updateGoal(userId, goalId, data);
+        const goal = await goalService.updateGoal(userId, goalId as string, data);
 
         res.status(200).json({
             success: true,
@@ -52,10 +52,10 @@ export class GoalController {
         });
     });
 
-    deleteGoal = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    deleteGoal = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { goalId } = req.params;
-        await goalService.deleteGoal(userId, goalId);
+        await goalService.deleteGoal(userId, goalId as string);
 
         res.status(200).json({
             success: true,
@@ -63,10 +63,10 @@ export class GoalController {
         });
     });
 
-    getGoalProgress = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getGoalProgress = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const { goalId } = req.params;
-        const progress = await goalService.getGoalProgress(userId, goalId);
+        const progress = await goalService.getGoalProgress(userId, goalId as string);
 
         res.status(200).json({
             success: true,

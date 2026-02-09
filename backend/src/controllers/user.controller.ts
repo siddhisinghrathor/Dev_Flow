@@ -1,11 +1,11 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { userService } from '../services/user.service';
 import { updatePreferencesSchema } from '../validators/schemas';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AuthRequest } from '../middleware/auth';
 
 export class UserController {
-    getProfile = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const profile = await userService.getUserProfile(userId);
 
@@ -15,7 +15,7 @@ export class UserController {
         });
     });
 
-    updatePreferences = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    updatePreferences = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const data = updatePreferencesSchema.parse(req.body);
         const user = await userService.updatePreferences(userId, data);
@@ -27,7 +27,7 @@ export class UserController {
         });
     });
 
-    getStats = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+    getStats = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.userId!;
         const stats = await userService.getUserStats(userId);
 

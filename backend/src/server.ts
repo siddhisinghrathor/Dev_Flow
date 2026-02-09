@@ -53,7 +53,7 @@ class Server {
         this.app.use('/api', limiter);
 
         // Request logging
-        this.app.use((req, res, next) => {
+        this.app.use((req, _res, next) => {
             logger.http(`${req.method} ${req.url}`);
             next();
         });
@@ -64,7 +64,7 @@ class Server {
         this.app.use(`/api/${config.apiVersion}`, routes);
 
         // Root endpoint
-        this.app.get('/', (req, res) => {
+        this.app.get('/', (_req, res) => {
             res.json({
                 success: true,
                 message: 'DevFlow API Server',
@@ -74,7 +74,7 @@ class Server {
         });
 
         // 404 handler
-        this.app.use((req, res) => {
+        this.app.use((_req, res) => {
             res.status(404).json({
                 success: false,
                 message: 'Route not found',

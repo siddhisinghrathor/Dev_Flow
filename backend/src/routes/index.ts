@@ -20,7 +20,7 @@ router.use('/users', userRoutes);
 router.use('/notifications', notificationRoutes);
 
 // Health check
-router.get('/health', (req, res) => {
+router.get('/health', (_req, res) => {
     res.status(200).json({
         success: true,
         message: 'Server is healthy',
