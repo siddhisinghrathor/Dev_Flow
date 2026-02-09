@@ -1,0 +1,264 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTH
+// ============================================
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  username      String
+  avatar        String?
+  persona       String    @default("fullstack") // frontend, backend, fullstack, other
+  
+  // Preferences
+  dailyTarget   Int       @default(5)
+  weeklyTarget  Int       @default(25)
+  theme         String    @default("system") // light, dark, system
+  notificationsEnabled Boolean @default(true)
+  autoCompleteOnTimerEnd Boolean @default(false)
+  soundEnabled  Boolean   @default(true)
+  quietHoursStart String? // e.g., "22:00"
+  quietHoursEnd   String? // e.g., "08:00"
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+  
+  // Relations
+  tasks         Task[]
+  goals         Goal[]
+  playlists     Playlist[]
+  timerSessions TimerSession[]
+  achievements  Achievement[]
+  notifications Notification[]
+  activityLogs  ActivityLog[]
+  refreshTokens RefreshToken[]
+  
+  @@index([email])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([token])
+}
+
+// ============================================
+// TASKS
+// ============================================
+
+model Task {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String?
+  category    String   // frontend, backend, dsa, health, career, general
+  priority    String   // low, medium, high
+  status      String   @default("planned") // planned, completed, failed, skipped, suggested
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+  dueDate     DateTime?
+  scheduledFor DateTime? // For planned execution date
+  
+  duration    Int?     // Estimated duration in minutes
+  timeSpent   Int      @default(0) // Actual time spent in seconds
+  
+  recurrence  String   @default("none") // none, daily, weekly, custom
+  
+  // Relations
+  goalId      String?
+  goal        Goal?    @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  
+  playlistId  String?
+  playlist    Playlist? @relation(fields: [playlistId], references: [id], onDelete: SetNull)
+  
+  timerSessions TimerSession[]
+  activityLogs  ActivityLog[]
+  
+  // Soft delete
+  deletedAt   DateTime?
+  
+  @@index([userId, status])
+  @@index([userId, scheduledFor])
+  @@index([userId, createdAt])
+  @@index([goalId])
+  @@index([playlistId])
+}
+
+// ============================================
+// GOALS
+// ============================================
+
+model Goal {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String?
+  category    String
+  type        String   // 7-days, 14-days, 30-days, custom
+  
+  startDate   DateTime
+  targetDate  DateTime
+  
+  progress    Int      @default(0) // 0-100
+  isCompleted Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+  
+  // Relations
+  tasks       Task[]
+  
+  @@index([userId, isCompleted])
+  @@index([userId, targetDate])
+}
+
+// ============================================
+// PLAYLISTS
+// ============================================
+
+model Playlist {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String?
+  category    String
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  tasks       Task[]
+  
+  @@index([userId])
+}
+
+// ============================================
+// TIMER SESSIONS
+// ============================================
+
+model TimerSession {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  taskId      String
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  startTime   DateTime
+  endTime     DateTime?
+  
+  isRunning   Boolean  @default(true)
+  elapsedAtPause Int   @default(0) // in seconds
+  durationLimit Int?  // in seconds
+  
+  totalDuration Int?  // Calculated on completion, in seconds
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId, isRunning])
+  @@index([taskId])
+}
+
+// ============================================
+// ACHIEVEMENTS
+// ============================================
+
+model Achievement {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String
+  type        String   // streak, milestone, skill
+  icon        String?
+  
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  
+  @@index([userId, type])
+  @@index([userId, date])
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title       String
+  message     String
+  type        String   // info, success, warning, error, reminder
+  
+  read        Boolean  @default(false)
+  
+  // For scheduled notifications
+  scheduledFor DateTime?
+  sentAt      DateTime?
+  
+  // Metadata
+  relatedTaskId String?
+  relatedGoalId String?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId, read])
+  @@index([userId, scheduledFor])
+}
+
+// ============================================
+// ACTIVITY LOGS (Audit Trail)
+// ============================================
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  action      String   // task_created, task_completed, task_failed, goal_created, etc.
+  entityType  String   // task, goal, playlist, timer
+  entityId    String
+  
+  // Optional task reference for detailed tracking
+  taskId      String?
+  task        Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  
+  metadata    Json?    // Additional context
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+}
