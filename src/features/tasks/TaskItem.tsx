@@ -26,6 +26,7 @@ export const TaskItem = ({ task, onClick }: TaskItemProps) => {
         completed: <CheckCircle2 className="h-6 w-6 fill-primary-600 text-white" />,
         failed: <AlertCircle className="h-6 w-6 text-destructive" />,
         skipped: <SkipForward className="h-6 w-6 text-muted-foreground" />,
+        suggested: <Circle className="h-6 w-6 text-primary-500" />,
     };
 
     const handleToggle = (e: React.MouseEvent) => {

@@ -4,18 +4,19 @@ import { TaskItem } from './TaskItem';
 import { TaskDetailPanel } from './TaskDetailPanel';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Plus, Search, LayoutGrid, List } from 'lucide-react';
+import { Plus, Search, LayoutGrid, List, Sparkles } from 'lucide-react';
 import type { Category, Priority, Task } from '../../types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useKeyboardShortcut } from '../../hooks/useKeyboardShortcut';
 import { cn } from '../../utils/cn';
 
 export const TaskList = () => {
-    const { tasks, addTask } = useTaskStore();
+    const { tasks, addTask, activeTimer } = useTaskStore();
     const [title, setTitle] = useState('');
     const [category, setCategory] = useState<Category>('general');
     const [priority, setPriority] = useState<Priority>('medium');
-    const [filter, setFilter] = useState<Category | 'all'>('all');
+    const [filterCategory, setFilterCategory] = useState<Category | 'all'>('all');
+    const [filterStatus, setFilterStatus] = useState<'active' | 'completed' | 'all'>('active');
     const [search, setSearch] = useState('');
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -43,10 +44,35 @@ export const TaskList = () => {
         setTitle('');
     };
 
-    const filteredTasks = tasks.filter((t) => {
-        const matchesFilter = filter === 'all' ? true : t.category === filter;
+    const sortedTasks = [...tasks].sort((a, b) => {
+        // Active timer task first
+        if (activeTimer?.taskId === a.id) return -1;
+        if (activeTimer?.taskId === b.id) return 1;
+
+        // Then by status (planned > suggested > completed > failed)
+        const statusOrder = { planned: 0, suggested: 1, completed: 2, failed: 3, skipped: 4 };
+        if (statusOrder[a.status] !== statusOrder[b.status]) {
+            return statusOrder[a.status] - statusOrder[b.status];
+        }
+
+        // Then by priority
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+            return priorityOrder[a.priority] - priorityOrder[b.priority];
+        }
+
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    const filteredTasks = sortedTasks.filter((t) => {
+        const matchesCategory = filterCategory === 'all' ? true : t.category === filterCategory;
         const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase());
-        return matchesFilter && matchesSearch;
+
+        let matchesStatus = true;
+        if (filterStatus === 'active') matchesStatus = t.status === 'planned' || t.status === 'suggested';
+        if (filterStatus === 'completed') matchesStatus = t.status === 'completed' || t.status === 'failed';
+
+        return matchesCategory && matchesSearch && matchesStatus;
     });
 
     return (
@@ -84,7 +110,8 @@ export const TaskList = () => {
                 </div>
             </div>
 
-            <form onSubmit={handleAddTask} className="group flex flex-col space-y-3 rounded-2xl border bg-card p-5 shadow-sm hover:shadow-md hover:border-primary-500/50 transition-all duration-300">
+            {/* Input Form */}
+            <form onSubmit={handleAddTask} className="group relative z-10 flex flex-col space-y-3 rounded-2xl border bg-card p-5 shadow-sm hover:shadow-md hover:border-primary-500/50 transition-all duration-300">
                 <div className="flex items-center space-x-3">
                     <Input
                         ref={inputRef}
@@ -127,21 +154,40 @@ export const TaskList = () => {
                             </select>
                         </div>
                     </div>
-                    <p className="text-[10px] text-muted-foreground font-medium italic opacity-0 group-hover:opacity-100 transition-opacity">
-                        Hit Enter to instantly track
-                    </p>
                 </div>
             </form>
 
-            <div className="flex items-center justify-between border-b pb-4">
-                <div className="flex items-center space-x-6">
-                    <FilterTab active={filter === 'all'} onClick={() => setFilter('all')} label="All Flow" />
-                    <FilterTab active={filter === 'frontend'} onClick={() => setFilter('frontend')} label="Frontend" />
-                    <FilterTab active={filter === 'backend'} onClick={() => setFilter('backend')} label="Backend" />
-                    <FilterTab active={filter === 'dsa'} onClick={() => setFilter('dsa')} label="DSA" />
+            {/* Filter Tabs */}
+            <div className="flex items-center justify-between border-b pb-4 overflow-x-auto">
+                <div className="flex items-center space-x-6 min-w-max">
+                    <FilterTab active={filterCategory === 'all'} onClick={() => setFilterCategory('all')} label="All Flow" />
+                    <FilterTab active={filterCategory === 'frontend'} onClick={() => setFilterCategory('frontend')} label="Frontend" />
+                    <FilterTab active={filterCategory === 'backend'} onClick={() => setFilterCategory('backend')} label="Backend" />
+                    <FilterTab active={filterCategory === 'dsa'} onClick={() => setFilterCategory('dsa')} label="DSA" />
+                </div>
+                <div className="flex bg-accent/30 p-1 rounded-lg ml-4">
+                    <button
+                        onClick={() => setFilterStatus('active')}
+                        className={cn("px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all", filterStatus === 'active' ? "bg-background shadow text-primary-600" : "text-muted-foreground")}
+                    >
+                        Active
+                    </button>
+                    <button
+                        onClick={() => setFilterStatus('completed')}
+                        className={cn("px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all", filterStatus === 'completed' ? "bg-background shadow text-green-600" : "text-muted-foreground")}
+                    >
+                        Done
+                    </button>
+                    <button
+                        onClick={() => setFilterStatus('all')}
+                        className={cn("px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all", filterStatus === 'all' ? "bg-background shadow text-foreground" : "text-muted-foreground")}
+                    >
+                        View All
+                    </button>
                 </div>
             </div>
 
+            {/* Task Grid/List */}
             <div className={cn(
                 "grid gap-4",
                 viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
@@ -159,17 +205,23 @@ export const TaskList = () => {
                             </div>
                             <h3 className="text-lg font-bold">No tasks found</h3>
                             <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-2">Adjust your filters or start fresh by adding a new task to your backlog.</p>
-                            <Button variant="outline" size="sm" className="mt-6" onClick={() => { setFilter('all'); setSearch(''); }}>Clear all filters</Button>
+                            <Button variant="outline" size="sm" className="mt-6" onClick={() => { setFilterCategory('all'); setSearch(''); }}>Clear all filters</Button>
                         </motion.div>
                     ) : (
                         filteredTasks.map((task) => (
-                            <TaskItem key={task.id} task={task} onClick={setSelectedTask} />
+                            <TaskItem
+                                key={task.id}
+                                task={task}
+                                onClick={setSelectedTask}
+                            />
                         ))
                     )}
                 </AnimatePresence>
             </div>
 
-            <TaskDetailPanel task={selectedTask} onClose={() => setSelectedTask(null)} />
+            {selectedTask && (
+                <TaskDetailPanel task={selectedTask} onClose={() => setSelectedTask(null)} />
+            )}
         </div>
     );
 };

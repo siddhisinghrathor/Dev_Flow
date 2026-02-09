@@ -1,24 +1,64 @@
-import { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useTaskStore } from '../../store/useTaskStore';
 import { useAppStore } from '../../store/useAppStore';
+import { usePlaylistStore } from '../../store/usePlaylistStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Target, Zap, CheckCircle2, TrendingUp, Calendar, AlertTriangle } from 'lucide-react';
-import { format, startOfDay, isWithinInterval, startOfWeek, endOfWeek } from 'date-fns';
-import { motion } from 'framer-motion';
+import { Modal } from '../../components/ui/Modal';
+import { Input } from '../../components/ui/Input';
+import { FocusOverlay } from '../../components/ui/FocusOverlay';
+import { Target, Zap, CheckCircle2, TrendingUp, Calendar, AlertTriangle, Plus, Play, Pause, Square, Clock, ArrowRight, ZapOff } from 'lucide-react';
+import { format, startOfDay, isWithinInterval, startOfWeek, endOfWeek, addDays, differenceInDays } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
+import type { Category, Priority, Task } from '../../types';
 
 export const Dashboard = () => {
-    const { tasks } = useTaskStore();
-    const { preferences, goals } = useAppStore();
+    const { tasks, activeTimer, startTimer, pauseTimer, stopTimer, getEffectiveElapsed, setTaskStatus, dailyLogs } = useTaskStore();
+    const { preferences, goals, addGoal, calculateGoalProgress } = useAppStore();
+    const { playlists, activePlaylistId } = usePlaylistStore();
+
+    const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+    const [isSetGoalOpen, setIsSetGoalOpen] = useState(false);
+    const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
+    const [isFocusMode, setIsFocusMode] = useState(false);
+    const [elapsed, setElapsed] = useState(0);
 
     const today = useMemo(() => startOfDay(new Date()), []);
     const weekStart = useMemo(() => startOfWeek(today), [today]);
     const weekEnd = useMemo(() => endOfWeek(today), [today]);
 
+    // Live Timer Update
+    useEffect(() => {
+        let interval: any;
+        if (activeTimer?.isRunning) {
+            interval = setInterval(() => {
+                const current = getEffectiveElapsed();
+                setElapsed(current);
+            }, 1000);
+        } else {
+            setElapsed(getEffectiveElapsed());
+        }
+        return () => clearInterval(interval);
+    }, [activeTimer, getEffectiveElapsed, tasks]);
+
+    // Sync goal progress
+    useEffect(() => {
+        const completedTaskIds = tasks.filter(t => t.status === 'completed').map(t => t.id);
+        goals.forEach(goal => {
+            calculateGoalProgress(goal.id, completedTaskIds);
+        });
+    }, [tasks, goals.length, calculateGoalProgress]);
+
+    const activeTask = useMemo(() => tasks.find(t => t.id === activeTimer?.taskId), [tasks, activeTimer]);
+
     const stats = useMemo(() => {
         const todayTasks = tasks.filter(t =>
             t.dueDate ? isWithinInterval(new Date(t.dueDate), { start: today, end: today }) :
+                // Fallback for tasks without dueDate - treat as today if created today? Or simple backlog.
+                // Better logic: Tasks are 'Today's Focus' if they are explicitly planned for today OR are active.
+                // For simplified dashboard, let's assume 'planned' tasks without due date are NOT today unless manually added.
+                // But for now, existing logic:
                 isWithinInterval(new Date(t.createdAt), { start: today, end: today })
         );
 
@@ -33,7 +73,24 @@ export const Dashboard = () => {
         const todayProgress = todayTasks.length > 0 ? (todayCompleted / todayTasks.length) * 100 : 0;
         const weekProgress = preferences.weeklyTarget > 0 ? (weekCompleted / preferences.weeklyTarget) * 100 : 0;
 
-        const productivityScore = Math.min(100, (todayProgress * 0.4 + weekProgress * 0.6));
+        // Dynamic Streak calculation
+        let streak = 0;
+        const sortedLogs = [...dailyLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        let checkDate = today;
+        for (const log of sortedLogs) {
+            if (differenceInDays(checkDate, new Date(log.date)) <= 1) {
+                if (log.completedTaskIds.length > 0) {
+                    streak++;
+                    checkDate = new Date(log.date);
+                } else if (!isWithinInterval(new Date(), { start: startOfDay(new Date()), end: new Date() })) {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        const productivityScore = Math.min(100, (todayProgress * 0.4 + weekProgress * 0.6 + (streak > 0 ? 10 : 0)));
 
         return {
             todayCompleted,
@@ -42,13 +99,35 @@ export const Dashboard = () => {
             weekCompleted,
             weekProgress,
             productivityScore,
-            pendingToday: todayTasks.filter(t => t.status === 'planned').length,
+            streak,
+            pendingToday: todayTasks.filter(t => t.status === 'planned' || t.status === 'suggested').length,
             failedToday: todayTasks.filter(t => t.status === 'failed').length,
+            todayTasks
         };
-    }, [tasks, today, weekStart, weekEnd, preferences]);
+    }, [tasks, today, weekStart, weekEnd, preferences, dailyLogs]);
+
+    const smartTip = useMemo(() => {
+        if (stats.todayProgress >= 100) return "Daily goal crushed! Time for some high-quality rest. 🏆";
+        if (stats.streak >= 5) return `${stats.streak}-day streak! Keep the flame alive, don't break the chain. 🔥`;
+        if (stats.pendingToday > 0) return `You have ${stats.pendingToday} tasks left for today. One step at a time! 💪`;
+        if (stats.failedToday > 0) return "A few bumps today? No worries, you can always recover tomorrow. 🚀";
+        return "Plan your day and start your first sprint. Consistency is key! ✨";
+    }, [stats]);
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const activePlaylist = playlists.find(p => p.id === activePlaylistId);
 
     return (
-        <div className="space-y-8 animate-fade-in">
+        <div className="space-y-8 animate-fade-in relative">
+            {isFocusMode && activeTask && (
+                <FocusOverlay taskId={activeTask.id} onClose={() => setIsFocusMode(false)} />
+            )}
+
             {/* KPI Section */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <KPIItem
@@ -74,16 +153,70 @@ export const Dashboard = () => {
                 />
                 <KPIItem
                     title="Daily Streak"
-                    value="7 Days"
+                    value={`${stats.streak} Days`}
                     icon={<Zap className="text-orange-500" />}
-                    progress={70} // Placeholder for streak progress
-                    label="current hot streak"
+                    progress={Math.min(100, (stats.streak / 7) * 100)}
+                    label="current consistency"
                 />
             </div>
 
             <div className="grid gap-8 lg:grid-cols-3">
-                {/* Progress & Goals */}
                 <div className="lg:col-span-2 space-y-6">
+                    {/* Active Task Timer */}
+                    <AnimatePresence>
+                        {activeTask && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                            >
+                                <Card className="border-primary-500/50 bg-primary-50/50 dark:bg-primary-950/20 shadow-lg overflow-hidden">
+                                    <CardContent className="p-6">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-12 w-12 rounded-full bg-primary-600 text-white flex items-center justify-center animate-pulse">
+                                                    <Clock size={24} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-bold text-primary-600 dark:text-primary-400 uppercase tracking-widest">Active Sprint</p>
+                                                    <h3 className="text-xl font-bold">{activeTask.title}</h3>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col items-end">
+                                                <div className="text-3xl font-mono font-black tabular-nums tracking-tighter">
+                                                    {formatTime(elapsed)}
+                                                </div>
+                                                {activeTask.duration && (
+                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Target: {activeTask.duration}m</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="mt-6 flex gap-3">
+                                            {activeTimer?.isRunning ? (
+                                                <Button onClick={pauseTimer} className="flex-1 gap-2" variant="outline">
+                                                    <Pause size={18} /> Pause
+                                                </Button>
+                                            ) : (
+                                                <Button onClick={() => startTimer(activeTask.id)} className="flex-1 gap-2" variant="primary">
+                                                    <Play size={18} /> Resume
+                                                </Button>
+                                            )}
+                                            <Button onClick={() => setIsFocusMode(true)} className="flex-1 gap-2 bg-zinc-900 text-white hover:bg-zinc-800">
+                                                <Zap size={18} /> Focus Mode
+                                            </Button>
+                                            <Button
+                                                onClick={() => setTaskStatus(activeTask.id, 'completed')}
+                                                className="bg-green-600 hover:bg-green-700 text-white gap-2 flex-1"
+                                            >
+                                                <CheckCircle2 size={18} /> Complete
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
                     <Card className="overflow-hidden border-none shadow-lg bg-gradient-to-br from-primary-600 to-primary-800 text-white">
                         <CardContent className="p-8">
                             <div className="flex justify-between items-start">
@@ -151,7 +284,7 @@ export const Dashboard = () => {
                                 ) : (
                                     <div className="py-6 text-center text-muted-foreground">
                                         <p className="text-sm">No active goals. Start planning your future!</p>
-                                        <Button variant="outline" size="sm" className="mt-3">Create Goal</Button>
+                                        <Button variant="outline" size="sm" className="mt-3" onClick={() => setIsSetGoalOpen(true)}>Create Goal</Button>
                                     </div>
                                 )}
                             </CardContent>
@@ -164,15 +297,11 @@ export const Dashboard = () => {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                <p className="text-sm">
-                                    {stats.failedToday > 0
-                                        ? "Don't let failures discourage you. Missed tasks can be rescheduled for tomorrow!"
-                                        : "You're doing great! Keep the momentum going to unlock the 'Weekly Warrior' badge."}
-                                </p>
+                                <p className="text-sm font-medium">{smartTip}</p>
                                 <div className="rounded-lg bg-orange-50 dark:bg-orange-950/20 p-3 flex items-start gap-2 border border-orange-100 dark:border-orange-900/30">
                                     <AlertTriangle size={16} className="text-orange-500 mt-0.5" />
                                     <p className="text-[11px] text-orange-700 dark:text-orange-400 font-medium">
-                                        Pro Tip: Tasks marked as 'Failed' will break your streak unless you complete a 'Recovery' task tonight.
+                                        Pro Tip: Short sprints of 25 minutes are shown to increase developer productivity by 30%. Try the timer!
                                     </p>
                                 </div>
                             </CardContent>
@@ -180,7 +309,6 @@ export const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Side Info */}
                 <div className="space-y-6">
                     <Card className="glass">
                         <CardHeader>
@@ -189,37 +317,266 @@ export const Dashboard = () => {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="grid grid-cols-2 gap-2">
-                            <ActionButton icon={<Zap size={18} />} label="Sprint" color="text-orange-500" />
-                            <ActionButton icon={<CheckCircle2 size={18} />} label="Tasks" color="text-green-500" />
-                            <ActionButton icon={<TrendingUp size={18} />} label="Report" color="text-blue-500" />
-                            <ActionButton icon={<Target size={18} />} label="Set Goal" color="text-purple-500" />
+                            <ActionButton
+                                icon={<Plus size={18} />}
+                                label="Add Task"
+                                color="text-green-500"
+                                onClick={() => setIsAddTaskOpen(true)}
+                            />
+                            <ActionButton
+                                icon={<Zap size={18} />}
+                                label="Sprint"
+                                color="text-orange-500"
+                                onClick={() => {
+                                    const nextTask = stats.todayTasks.find(t => t.status === 'planned');
+                                    if (nextTask) startTimer(nextTask.id);
+                                }}
+                            />
+                            <ActionButton
+                                icon={<Target size={18} />}
+                                label="Set Goal"
+                                color="text-purple-500"
+                                onClick={() => setIsSetGoalOpen(true)}
+                            />
+                            <ActionButton
+                                icon={<Calendar size={18} />}
+                                label="Playlist"
+                                color="text-blue-500"
+                                onClick={() => setIsPlaylistOpen(true)}
+                            />
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-sm font-bold uppercase text-muted-foreground">
-                                Activity Playlist
+                                Today's Focus
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center gap-3 p-3 rounded-xl border bg-accent/30">
-                                <div className="h-10 w-10 rounded-lg bg-primary-600 text-white flex items-center justify-center">
-                                    <Calendar size={20} />
+                        <CardContent className="space-y-3">
+                            {stats.todayTasks.filter(t => t.status === 'planned' || t.status === 'suggested' || t.status === 'completed').slice(0, 5).map(task => (
+                                <div key={task.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-accent/50 group transition-all">
+                                    <div className="flex items-center gap-3">
+                                        <button onClick={() => setTaskStatus(task.id, task.status === 'completed' ? 'planned' : 'completed')}>
+                                            {task.status === 'completed' ? <CheckCircle2 size={16} className="text-primary-500" /> : <div className="h-4 w-4 rounded-full border border-muted-foreground" />}
+                                        </button>
+                                        <span className={cn("text-xs font-semibold", task.status === 'completed' && "line-through text-muted-foreground opacity-60")}>{task.title}</span>
+                                    </div>
+                                    {!activeTimer && (task.status === 'planned' || task.status === 'suggested') && (
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                                            onClick={() => startTimer(task.id)}
+                                        >
+                                            <Play size={12} />
+                                        </Button>
+                                    )}
                                 </div>
-                                <div>
-                                    <p className="text-sm font-bold">Frontend Sprint</p>
-                                    <p className="text-xs text-muted-foreground">Active for 4 more days</p>
-                                </div>
-                            </div>
-                            <Button variant="outline" className="w-full text-xs h-9">View Weekly Plan</Button>
+                            ))}
+                            {stats.todayTasks.length === 0 && (
+                                <p className="text-xs text-muted-foreground text-center py-4 italic">No tasks planned for today.</p>
+                            )}
+                            <Button variant="ghost" className="w-full text-[10px] font-bold uppercase tracking-widest h-8 gap-2">
+                                View all tasks <ArrowRight size={12} />
+                            </Button>
                         </CardContent>
                     </Card>
                 </div>
             </div>
+
+            <QuickAddTaskModal isOpen={isAddTaskOpen} onClose={() => setIsAddTaskOpen(false)} />
+            <SetGoalModal isOpen={isSetGoalOpen} onClose={() => setIsSetGoalOpen(false)} />
+            <PlaylistModal isOpen={isPlaylistOpen} onClose={() => setIsPlaylistOpen(false)} activePlaylist={activePlaylist} />
         </div>
     );
 };
+// ... (modals remain unchanged)
+const QuickAddTaskModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
+    const { addTask } = useTaskStore();
+    const [title, setTitle] = useState('');
+    const [category, setCategory] = useState<Category>('general');
+    const [priority, setPriority] = useState<Priority>('medium');
+    const [duration, setDuration] = useState(25);
+
+    const handleAdd = () => {
+        if (!title.trim()) return;
+        addTask({ title, category, priority, recurrence: 'none', duration });
+        setTitle('');
+        onClose();
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Quick Launch Task">
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-muted-foreground">Task Title</label>
+                    <Input
+                        placeholder="What are we building?"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        autoFocus
+                    />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-muted-foreground">Category</label>
+                        <select
+                            value={category}
+                            onChange={(e) => setCategory(e.target.value as Category)}
+                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                            <option value="general">General</option>
+                            <option value="frontend">Frontend</option>
+                            <option value="backend">Backend</option>
+                            <option value="dsa">DSA</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-muted-foreground">Impact</label>
+                        <select
+                            value={priority}
+                            onChange={(e) => setPriority(e.target.value as Priority)}
+                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                            <option value="low">Low Impact</option>
+                            <option value="medium">Medium Impact</option>
+                            <option value="high">High Impact</option>
+                        </select>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-muted-foreground font-mono">Sprint Duration: {duration}m</label>
+                    <input
+                        type="range"
+                        min="5" max="120" step="5"
+                        value={duration}
+                        onChange={(e) => setDuration(parseInt(e.target.value))}
+                        className="w-full accent-primary-600 h-2 bg-accent rounded-lg appearance-none cursor-pointer"
+                    />
+                </div>
+                <div className="pt-4 flex gap-3">
+                    <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+                    <Button variant="primary" className="flex-1" onClick={handleAdd}>Launch Task</Button>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+const SetGoalModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
+    const { addGoal } = useAppStore();
+    const [title, setTitle] = useState('');
+    const [type, setType] = useState<'7-days' | '14-days' | '30-days' | 'custom'>('7-days');
+    const [category, setCategory] = useState<Category>('general');
+
+    const handleAdd = () => {
+        if (!title.trim()) return;
+        const days = type === '7-days' ? 7 : type === '14-days' ? 14 : 30;
+        addGoal({
+            title,
+            type,
+            category,
+            startDate: new Date().toISOString(),
+            targetDate: addDays(new Date(), days).toISOString(),
+            tasks: []
+        });
+        setTitle('');
+        onClose();
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Set Long-Term Goal">
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-muted-foreground">Goal Title</label>
+                    <Input
+                        placeholder="e.g. Master Backend Engineering"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                    />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-muted-foreground">Duration</label>
+                        <select
+                            value={type}
+                            onChange={(e) => setType(e.target.value as any)}
+                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                            <option value="7-days">7 Days Blast</option>
+                            <option value="14-days">14 Days Sprint</option>
+                            <option value="30-days">30 Days Challenge</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-muted-foreground">Category</label>
+                        <select
+                            value={category}
+                            onChange={(e) => setCategory(e.target.value as Category)}
+                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                            <option value="general">General</option>
+                            <option value="frontend">Frontend</option>
+                            <option value="backend">Backend</option>
+                            <option value="dsa">DSA</option>
+                        </select>
+                    </div>
+                </div>
+                <div className="pt-4 flex gap-3">
+                    <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+                    <Button variant="primary" className="flex-1" onClick={handleAdd}>Commit to Goal</Button>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+const PlaylistModal = ({ isOpen, onClose, activePlaylist }: { isOpen: boolean, onClose: () => void, activePlaylist: any }) => {
+    const { addTask } = useTaskStore();
+
+    if (!activePlaylist) return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Weekly Playlists">
+            <div className="py-10 text-center text-muted-foreground italic">
+                No active playlists. Create one in Settings!
+            </div>
+        </Modal>
+    );
+
+    const handleApplyTask = (taskData: any) => {
+        addTask({ ...taskData, recurrence: 'none' });
+        onClose();
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={activePlaylist.title}>
+            <div className="space-y-6">
+                <div className="bg-accent/30 p-4 rounded-xl border">
+                    <p className="text-sm font-medium">{activePlaylist.description}</p>
+                </div>
+                <div className="space-y-3">
+                    <h4 className="text-xs font-bold uppercase text-muted-foreground px-1">Planned Activities</h4>
+                    {activePlaylist.tasks.map((task: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between p-3 rounded-xl border bg-card hover:bg-accent/30 transition-all">
+                            <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-lg bg-primary-600/10 text-primary-600 flex items-center justify-center font-bold">
+                                    {idx + 1}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold">{task.title}</p>
+                                    <p className="text-[10px] text-muted-foreground capitalize">{task.category} • {task.duration} mins</p>
+                                </div>
+                            </div>
+                            <Button size="sm" variant="outline" className="h-8 text-[10px]" onClick={() => handleApplyTask(task)}>
+                                Track Today
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </Modal>
+    );
+}
 
 const KPIItem = ({ title, value, icon, progress, label }: any) => (
     <Card className="relative overflow-hidden group hover:border-primary-500/50 transition-all duration-300">
@@ -247,8 +604,11 @@ const KPIItem = ({ title, value, icon, progress, label }: any) => (
     </Card>
 );
 
-const ActionButton = ({ icon, label, color }: any) => (
-    <button className="flex flex-col items-center justify-center p-4 rounded-xl border bg-card hover:bg-accent hover:shadow-inner transition-all group">
+const ActionButton = ({ icon, label, color, onClick }: any) => (
+    <button
+        onClick={onClick}
+        className="flex flex-col items-center justify-center p-4 rounded-xl border bg-card hover:bg-accent hover:shadow-inner transition-all group pointer-events-auto"
+    >
         <div className={cn("mb-2 group-hover:scale-110 transition-transform", color)}>
             {icon}
         </div>

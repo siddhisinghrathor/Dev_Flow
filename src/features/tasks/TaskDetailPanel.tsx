@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, CheckCircle2, AlertCircle, Clock, Calendar, Pencil, Target } from 'lucide-react';
+import { X, Trash2, CheckCircle2, AlertCircle, Clock, Calendar, Pencil, Target, Play, Pause, Square } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { useTaskStore } from '../../store/useTaskStore';
@@ -11,7 +12,20 @@ interface TaskDetailPanelProps {
 }
 
 export const TaskDetailPanel = ({ task, onClose }: TaskDetailPanelProps) => {
-    const { setTaskStatus, deleteTask } = useTaskStore();
+    const { setTaskStatus, deleteTask, activeTimer, startTimer, pauseTimer, stopTimer, getEffectiveElapsed } = useTaskStore();
+    const [elapsed, setElapsed] = useState(0);
+
+    useEffect(() => {
+        let interval: any;
+        if (activeTimer?.taskId === task?.id && activeTimer?.isRunning) {
+            interval = setInterval(() => {
+                setElapsed(getEffectiveElapsed());
+            }, 1000);
+        } else if (activeTimer?.taskId === task?.id) {
+            setElapsed(getEffectiveElapsed());
+        }
+        return () => clearInterval(interval);
+    }, [activeTimer, task?.id, getEffectiveElapsed]);
 
     if (!task) return null;
 
@@ -25,6 +39,15 @@ export const TaskDetailPanel = ({ task, onClose }: TaskDetailPanelProps) => {
             deleteTask(task.id);
             onClose();
         }
+    };
+
+    const isTimerRunning = activeTimer?.taskId === task.id && activeTimer?.isRunning;
+    const isTimerActive = activeTimer?.taskId === task.id;
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
     return (
@@ -47,7 +70,7 @@ export const TaskDetailPanel = ({ task, onClose }: TaskDetailPanelProps) => {
                     >
                         <div className="flex h-full flex-col">
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-xl font-bold">Task Details</h2>
+                                <h2 className="text-xl font-bold">Task Workbench</h2>
                                 <Button variant="ghost" size="icon" onClick={onClose}>
                                     <X size={20} />
                                 </Button>
@@ -58,8 +81,8 @@ export const TaskDetailPanel = ({ task, onClose }: TaskDetailPanelProps) => {
                                     <label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider underline decoration-primary-500/30">
                                         Title
                                     </label>
-                                    <h3 className="text-2xl font-bold mt-1">{task.title}</h3>
-                                    <div className="flex flex-wrap gap-2 mt-3">
+                                    <h3 className="text-2xl font-bold mt-1 leading-tight">{task.title}</h3>
+                                    <div className="flex flex-wrap gap-2 mt-4">
                                         <Badge variant="secondary" className="capitalize">{task.category}</Badge>
                                         <Badge variant="outline" className="capitalize">{task.priority} Priority</Badge>
                                         <Badge variant={task.status === 'completed' ? 'success' : 'default'} className="capitalize">
@@ -68,12 +91,39 @@ export const TaskDetailPanel = ({ task, onClose }: TaskDetailPanelProps) => {
                                     </div>
                                 </div>
 
+                                {/* Timer Section */}
+                                <div className="p-6 rounded-2xl bg-accent/30 border space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs font-bold uppercase text-muted-foreground">Session Timer</span>
+                                        <span className="text-2xl font-mono font-black">{isTimerActive ? formatTime(elapsed) : formatTime(task.timeSpent || 0)}</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        {!isTimerRunning ? (
+                                            <Button className="flex-1" onClick={() => startTimer(task.id)}>
+                                                <Play size={16} className="mr-2" /> {task.timeSpent ? 'Resume' : 'Start'}
+                                            </Button>
+                                        ) : (
+                                            <Button className="flex-1" variant="outline" onClick={pauseTimer}>
+                                                <Pause size={16} className="mr-2" /> Pause
+                                            </Button>
+                                        )}
+                                        <Button variant="secondary" size="icon" onClick={stopTimer} disabled={!isTimerActive}>
+                                            <Square size={16} />
+                                        </Button>
+                                    </div>
+                                    {task.duration && (
+                                        <p className="text-[10px] text-center text-muted-foreground font-medium italic">
+                                            Target duration: {task.duration} minutes
+                                        </p>
+                                    )}
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                                            <Clock size={12} /> Duration
+                                            <Clock size={12} /> Total Focus
                                         </span>
-                                        <p className="text-sm font-semibold">{task.duration || 30} mins</p>
+                                        <p className="text-sm font-semibold">{Math.floor((task.timeSpent || 0) / 60)} mins</p>
                                     </div>
                                     <div className="space-y-1">
                                         <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
@@ -84,7 +134,7 @@ export const TaskDetailPanel = ({ task, onClose }: TaskDetailPanelProps) => {
                                 </div>
 
                                 <div className="space-y-4">
-                                    <h4 className="text-sm font-bold border-b pb-2">Actions</h4>
+                                    <h4 className="text-sm font-bold border-b pb-2">Status Actions</h4>
                                     <div className="grid grid-cols-2 gap-3">
                                         <Button
                                             onClick={() => handleStatusChange('completed')}
@@ -104,13 +154,13 @@ export const TaskDetailPanel = ({ task, onClose }: TaskDetailPanelProps) => {
                                             variant="outline"
                                             className="w-full justify-start gap-2 text-blue-500"
                                         >
-                                            <Pencil size={16} /> Edit Task
+                                            <Pencil size={16} /> Edit Details
                                         </Button>
                                         <Button
                                             variant="outline"
                                             className="w-full justify-start gap-2 text-purple-500"
                                         >
-                                            <Target size={16} /> Convert to Goal
+                                            <Target size={16} /> Push to Goal
                                         </Button>
                                     </div>
                                 </div>
@@ -121,7 +171,7 @@ export const TaskDetailPanel = ({ task, onClose }: TaskDetailPanelProps) => {
                                     <Trash2 size={16} className="mr-2" /> Delete Task
                                 </Button>
                                 <div className="flex-1" />
-                                <Button variant="secondary" onClick={onClose}>Close</Button>
+                                <Button variant="secondary" onClick={onClose}>Finish Session</Button>
                             </div>
                         </div>
                     </motion.div>

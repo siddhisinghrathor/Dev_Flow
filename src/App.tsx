@@ -7,6 +7,8 @@ import { Dashboard } from './features/dashboard/Dashboard';
 import { Settings } from './features/settings/Settings';
 import { useTaskStore } from './store/useTaskStore';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/Card';
+import { DailyPlanGenerator } from './features/planner/DailyPlanGenerator';
+import { NotificationManager } from './features/notifications/NotificationManager';
 
 function App() {
   const { dailyLogs } = useTaskStore();
@@ -15,7 +17,12 @@ function App() {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard />;
+        return (
+          <div className="space-y-6">
+            <DailyPlanGenerator />
+            <Dashboard />
+          </div>
+        );
       case 'tasks':
         return <TaskList />;
       case 'analytics':
@@ -43,7 +50,8 @@ function App() {
 
   return (
     <Layout activeTab={activeTab} onTabChange={setActiveTab}>
-      <div className="mx-auto max-w-6xl">
+      <NotificationManager />
+      <div className="mx-auto max-w-6xl animate-fade-in">
         {renderContent()}
       </div>
     </Layout>
