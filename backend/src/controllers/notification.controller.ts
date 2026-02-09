@@ -43,7 +43,7 @@ export class NotificationController {
     deleteNotification = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
         const userId = req.userId!;
         const { notificationId } = req.params;
-        const result = await notificationService.deleteNotification(userId, notificationId);
+        const result = await notificationService.deleteNotification(userId, notificationId as string);
 
         res.status(200).json({
             success: true,
