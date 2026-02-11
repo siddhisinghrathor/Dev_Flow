@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 // ============================================
@@ -255,7 +255,7 @@ model ActivityLog {
   taskId      String?
   task        Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
   
-  metadata    Json?    // Additional context
+  metadata    String?    // Additional context (stringified JSON)
   
   createdAt   DateTime @default(now())
   
