@@ -1,43 +1,52 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { api } from '../lib/api';
 import type { Playlist } from '../types';
 
 interface PlaylistState {
-    playlists: Playlist[];
-    activePlaylistId?: string;
+  playlists: Playlist[];
+  activePlaylistId?: string;
+  isLoading: boolean;
 
-    createPlaylist: (playlist: Omit<Playlist, 'id'>) => void;
-    deletePlaylist: (id: string) => void;
-    setActivePlaylist: (id?: string) => void;
+  // API Actions
+  fetchPlaylists: () => Promise<void>;
+
+  // Actions
+  createPlaylist: (playlist: Omit<Playlist, 'id'>) => Promise<void>;
+  deletePlaylist: (id: string) => Promise<void>;
+  setActivePlaylist: (id?: string) => Promise<void>;
 }
 
-export const usePlaylistStore = create<PlaylistState>()(
-    persist(
-        (set) => ({
-            playlists: [
-                {
-                    id: 'frontend-sprint-id',
-                    title: 'Frontend Sprint',
-                    description: 'A 5-day deep dive into React and Tailwind.',
-                    category: 'frontend',
-                    tasks: [
-                        { title: 'Learn React Hooks', category: 'frontend', priority: 'high', recurrence: 'none', duration: 60 },
-                        { title: 'Tailwind Mastery', category: 'frontend', priority: 'medium', recurrence: 'none', duration: 45 },
-                    ]
-                }
-            ],
-            activePlaylistId: 'frontend-sprint-id',
+export const usePlaylistStore = create<PlaylistState>()((set) => ({
+  playlists: [],
+  isLoading: false,
 
-            createPlaylist: (data) => set((state) => ({
-                playlists: [...state.playlists, { ...data, id: crypto.randomUUID() }]
-            })),
+  fetchPlaylists: async () => {
+    set({ isLoading: true });
+    try {
+      const response = await api.get('/playlists');
+      set({ playlists: response.data.data });
+      const active = response.data.data.find((p: any) => p.isActive);
+      if (active) set({ activePlaylistId: active.id });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
 
-            deletePlaylist: (id) => set((state) => ({
-                playlists: state.playlists.filter(p => p.id !== id)
-            })),
+  createPlaylist: async (data) => {
+    const response = await api.post('/playlists', data);
+    set((state) => ({ playlists: [...state.playlists, response.data.data] }));
+  },
 
-            setActivePlaylist: (id) => set({ activePlaylistId: id }),
-        }),
-        { name: 'devflow-playlists' }
-    )
-);
+  deletePlaylist: async (id) => {
+    await api.delete(`/playlists/${id}`);
+    set((state) => ({
+      playlists: state.playlists.filter((p) => p.id !== id),
+      activePlaylistId: state.activePlaylistId === id ? undefined : state.activePlaylistId,
+    }));
+  },
+
+  setActivePlaylist: async (id) => {
+    await api.patch(`/playlists/${id}/active`);
+    set({ activePlaylistId: id });
+  },
+}));

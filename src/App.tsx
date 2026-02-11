@@ -9,10 +9,45 @@ import { useTaskStore } from './store/useTaskStore';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/Card';
 import { DailyPlanGenerator } from './features/planner/DailyPlanGenerator';
 import { NotificationManager } from './features/notifications/NotificationManager';
+import { useEffect } from 'react';
+import { useAuthStore } from './store/useAuthStore';
+import { AuthForm } from './features/auth/AuthForm';
+import { useAppStore } from './store/useAppStore';
+import { usePlaylistStore } from './store/usePlaylistStore';
 
 function App() {
-  const { dailyLogs } = useTaskStore();
+  const { fetchTasks, fetchActiveTimer } = useTaskStore();
+  const { fetchGoals, fetchPreferences, fetchNotifications } = useAppStore();
+  const { fetchPlaylists } = usePlaylistStore();
+  const { isAuthenticated } = useAuthStore();
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchTasks();
+      fetchGoals();
+      fetchPreferences();
+      fetchNotifications();
+      fetchActiveTimer();
+      fetchPlaylists();
+    }
+  }, [
+    isAuthenticated,
+    fetchTasks,
+    fetchGoals,
+    fetchPreferences,
+    fetchNotifications,
+    fetchActiveTimer,
+    fetchPlaylists,
+  ]);
+
+  if (!isAuthenticated) {
+    return (
+      <Layout activeTab="dashboard" onTabChange={() => {}}>
+        <AuthForm />
+      </Layout>
+    );
+  }
 
   const renderContent = () => {
     switch (activeTab) {
@@ -51,9 +86,7 @@ function App() {
   return (
     <Layout activeTab={activeTab} onTabChange={setActiveTab}>
       <NotificationManager />
-      <div className="mx-auto max-w-6xl animate-fade-in">
-        {renderContent()}
-      </div>
+      <div className="mx-auto max-w-6xl animate-fade-in">{renderContent()}</div>
     </Layout>
   );
 }

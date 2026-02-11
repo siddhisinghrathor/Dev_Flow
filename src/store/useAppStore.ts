@@ -1,129 +1,140 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { Goal, Achievement, UserPreferences, Notification } from '../types';
+import { api } from '../lib/api';
+import type { Goal, Achievement, UserPreferences, Notification as AppNotification } from '../types';
 
 interface AppState {
-    goals: Goal[];
-    achievements: Achievement[];
-    notifications: Notification[];
-    preferences: UserPreferences;
+  goals: Goal[];
+  achievements: Achievement[];
+  notifications: AppNotification[];
+  preferences: UserPreferences;
+  isLoading: boolean;
 
-    // Goal Actions
-    addGoal: (goal: Omit<Goal, 'id' | 'progress' | 'isCompleted'>) => void;
-    updateGoal: (id: string, updates: Partial<Goal>) => void;
-    deleteGoal: (id: string) => void;
-    calculateGoalProgress: (goalId: string, completedTaskIds: string[]) => void;
+  // API Actions
+  fetchGoals: () => Promise<void>;
+  fetchAchievements: () => Promise<void>;
+  fetchPreferences: () => Promise<void>;
+  fetchNotifications: () => Promise<void>;
 
-    // Achievement Actions
-    addAchievement: (achievement: Omit<Achievement, 'id' | 'date'>) => void;
+  // Goal Actions
+  addGoal: (goal: Omit<Goal, 'id' | 'progress' | 'isCompleted'>) => Promise<void>;
+  updateGoal: (id: string, updates: Partial<Goal>) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
 
-    // Notification Actions
-    pushNotification: (notif: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
-    markAsRead: (id: string) => void;
-    clearNotifications: () => void;
+  // Achievement Actions
+  addAchievement: (achievement: Omit<Achievement, 'id' | 'date'>) => Promise<void>;
 
-    // Preference Actions
-    updatePreferences: (updates: Partial<UserPreferences>) => void;
+  // Notification Actions
+  pushNotification: (notif: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => Promise<void>;
+  markAsRead: (id: string) => Promise<void>;
+  clearNotifications: () => Promise<void>;
+
+  // Preference Actions
+  updatePreferences: (updates: Partial<UserPreferences>) => Promise<void>;
 }
 
-export const useAppStore = create<AppState>()(
-    persist(
-        (set, get) => ({
-            goals: [],
-            achievements: [],
-            notifications: [],
-            preferences: {
-                username: 'Developer',
-                persona: 'fullstack',
-                dailyTarget: 3,
-                weeklyTarget: 15,
-                theme: 'system',
-                notificationsEnabled: true,
-                autoCompleteOnTimerEnd: false,
-                soundEnabled: true,
-            },
+export const useAppStore = create<AppState>()((set, get) => ({
+  goals: [],
+  achievements: [],
+  notifications: [],
+  isLoading: false,
+  preferences: {
+    username: 'Developer',
+    persona: 'fullstack',
+    dailyTarget: 3,
+    weeklyTarget: 15,
+    theme: 'system',
+    notificationsEnabled: true,
+    autoCompleteOnTimerEnd: false,
+    soundEnabled: true,
+  },
 
-            addGoal: (goalData) => {
-                const newGoal: Goal = {
-                    ...goalData,
-                    id: crypto.randomUUID(),
-                    progress: 0,
-                    isCompleted: false,
-                };
-                set((state) => ({ goals: [...state.goals, newGoal] }));
-            },
+  fetchGoals: async () => {
+    const response = await api.get('/goals');
+    set({ goals: response.data.data });
+  },
 
-            updateGoal: (id, updates) => {
-                set((state) => ({
-                    goals: state.goals.map((g) => (g.id === id ? { ...g, ...updates } : g)),
-                }));
-            },
+  fetchAchievements: async () => {
+    // Achievements can be fetched from user profile or specific endpoint
+    const response = await api.get('/user/profile');
+    if (response.data.data.achievements) {
+      set({ achievements: response.data.data.achievements });
+    }
+  },
 
-            deleteGoal: (id) => {
-                set((state) => ({
-                    goals: state.goals.filter((g) => g.id !== id),
-                }));
-            },
+  fetchPreferences: async () => {
+    const response = await api.get('/user/profile');
+    const user = response.data.data;
+    set({
+      preferences: {
+        username: user.username,
+        persona: user.persona,
+        dailyTarget: user.dailyTarget,
+        weeklyTarget: user.weeklyTarget,
+        theme: user.theme,
+        notificationsEnabled: user.notificationsEnabled,
+        autoCompleteOnTimerEnd: user.autoCompleteOnTimerEnd,
+        soundEnabled: user.soundEnabled,
+      },
+    });
+  },
 
-            calculateGoalProgress: (goalId, completedTaskIds) => {
-                const goal = get().goals.find(g => g.id === goalId);
-                if (!goal) return;
+  fetchNotifications: async () => {
+    const response = await api.get('/notifications');
+    set({ notifications: response.data.data });
+  },
 
-                const goalTasks = goal.tasks;
-                if (goalTasks.length === 0) return;
+  addGoal: async (goalData) => {
+    const response = await api.post('/goals', goalData);
+    set((state) => ({ goals: [...state.goals, response.data.data] }));
+  },
 
-                const completedGoalTasks = goalTasks.filter(tid => completedTaskIds.includes(tid));
-                const progress = Math.round((completedGoalTasks.length / goalTasks.length) * 100);
+  updateGoal: async (id, updates) => {
+    await api.patch(`/goals/${id}`, updates);
+    set((state) => ({
+      goals: state.goals.map((g) => (g.id === id ? { ...g, ...updates } : g)),
+    }));
+  },
 
-                get().updateGoal(goalId, {
-                    progress,
-                    isCompleted: progress === 100
-                });
-            },
+  deleteGoal: async (id) => {
+    await api.delete(`/goals/${id}`);
+    set((state) => ({
+      goals: state.goals.filter((g) => g.id !== id),
+    }));
+  },
 
-            addAchievement: (achievementData) => {
-                const newAchievement: Achievement = {
-                    ...achievementData,
-                    id: crypto.randomUUID(),
-                    date: new Date().toISOString(),
-                };
-                set((state) => ({ achievements: [...state.achievements, newAchievement] }));
-            },
+  addAchievement: async (achievementData) => {
+    // Achievements are usually handled by backend logic, but we can have an endpoint
+    const response = await api.post('/user/achievements', achievementData);
+    set((state) => ({ achievements: [...state.achievements, response.data.data] }));
+  },
 
-            pushNotification: (notif) => {
-                const newNotif: Notification = {
-                    ...notif,
-                    id: crypto.randomUUID(),
-                    timestamp: new Date().toISOString(),
-                    read: false,
-                };
-                set((state) => ({ notifications: [newNotif, ...state.notifications].slice(0, 50) })); // Keep last 50
+  pushNotification: async (notif) => {
+    // Notifications are also usually pushed by backend, but we can manual push
+    const response = await api.post('/notifications', notif);
+    const newNotif = response.data.data;
+    set((state) => ({ notifications: [newNotif, ...state.notifications].slice(0, 50) }));
 
-                // Browser notification
-                if (get().preferences.notificationsEnabled && Notification.permission !== 'denied') {
-                    // If we already have permission, or it's default (which creates a request) - though request should be user-triggered.
-                    if (Notification.permission === 'granted') {
-                        new window.Notification(notif.title, { body: notif.message });
-                    }
-                }
-            },
+    if (get().preferences.notificationsEnabled && Notification.permission === 'granted') {
+      new window.Notification(notif.title, { body: notif.message });
+    }
+  },
 
-            markAsRead: (id) => {
-                set((state) => ({
-                    notifications: state.notifications.map(n => n.id === id ? { ...n, read: true } : n)
-                }));
-            },
+  markAsRead: async (id) => {
+    await api.patch(`/notifications/${id}/read`);
+    set((state) => ({
+      notifications: state.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    }));
+  },
 
-            clearNotifications: () => set({ notifications: [] }),
+  clearNotifications: async () => {
+    await api.delete('/notifications');
+    set({ notifications: [] });
+  },
 
-            updatePreferences: (updates) => {
-                set((state) => ({
-                    preferences: { ...state.preferences, ...updates },
-                }));
-            },
-        }),
-        {
-            name: 'devflow-app-store-v3',
-        }
-    )
-);
+  updatePreferences: async (updates) => {
+    await api.patch('/user/profile', updates);
+    set((state) => ({
+      preferences: { ...state.preferences, ...updates },
+    }));
+  },
+}));

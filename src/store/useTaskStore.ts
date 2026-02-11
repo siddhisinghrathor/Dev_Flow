@@ -1,218 +1,188 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { api } from '../lib/api';
 import type { Task, DailyLog, TaskStatus, TimerSession } from '../types';
-import { format, isSameDay, startOfDay, differenceInSeconds, isBefore, addDays } from 'date-fns';
+import { isSameDay, startOfDay, differenceInSeconds } from 'date-fns';
 
 interface TaskState {
-    tasks: Task[];
-    dailyLogs: DailyLog[];
-    activeTimer: TimerSession | null;
+  tasks: Task[];
+  dailyLogs: DailyLog[];
+  activeTimer: (TimerSession & { id?: string }) | null;
+  isLoading: boolean;
 
-    // Task Actions
-    addTask: (task: Omit<Task, 'id' | 'createdAt' | 'status'>) => string;
-    updateTask: (id: string, updates: Partial<Task>) => void;
-    deleteTask: (id: string) => void;
-    setTaskStatus: (id: string, status: TaskStatus) => void;
+  // API Actions
+  fetchTasks: () => Promise<void>;
+  fetchDailyLogs: () => Promise<void>;
+  fetchActiveTimer: () => Promise<void>;
 
-    // Timer Actions
-    startTimer: (taskId: string, durationMinutes?: number) => void;
-    pauseTimer: () => void;
-    stopTimer: () => void;
-    getEffectiveElapsed: () => number;
+  // Task Actions
+  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'status'>) => Promise<string>;
+  updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  setTaskStatus: (id: string, status: TaskStatus) => Promise<void>;
 
-    // Smart Actions
-    rescheduleMissedTasks: () => void;
-    acceptSuggestedPlan: (taskIds: string[]) => void;
+  // Timer Actions
+  startTimer: (taskId: string, durationMinutes?: number) => Promise<void>;
+  pauseTimer: () => Promise<void>;
+  resumeTimer: () => Promise<void>;
+  stopTimer: (completeTask?: boolean) => Promise<void>;
+  getEffectiveElapsed: () => number;
 
-    // Helpers
-    getTasksByDate: (date: Date) => Task[];
-    getDailyLogByDate: (date: string) => DailyLog | undefined;
+  // Helpers
+  getTasksByDate: (date: Date) => Task[];
 }
 
-export const useTaskStore = create<TaskState>()(
-    persist(
-        (set, get) => ({
-            tasks: [],
-            dailyLogs: [],
-            activeTimer: null,
+export const useTaskStore = create<TaskState>()((set, get) => ({
+  tasks: [],
+  dailyLogs: [],
+  activeTimer: null,
+  isLoading: false,
 
-            addTask: (taskData) => {
-                const id = crypto.randomUUID();
-                const newTask: Task = {
-                    ...taskData,
-                    id,
-                    createdAt: new Date().toISOString(),
-                    status: 'planned',
-                    timeSpent: 0,
-                };
-                set((state) => ({ tasks: [...state.tasks, newTask] }));
-                return id;
-            },
+  fetchTasks: async () => {
+    set({ isLoading: true });
+    try {
+      const response = await api.get('/tasks');
+      set({ tasks: response.data.data });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
 
-            updateTask: (id, updates) => {
-                set((state) => ({
-                    tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
-                }));
-            },
+  fetchDailyLogs: async () => {
+    // Analytics endpoint provides dashboard stats which includes logs
+    const response = await api.get('/analytics/dashboard');
+    // Map backend stats to DailyLog format if needed, or use them directly in UI
+    // For now, let's assume we fetch them separately or they are part of tasks
+  },
 
-            deleteTask: (id) => {
-                set((state) => {
-                    const isTimerActive = state.activeTimer?.taskId === id;
-                    return {
-                        tasks: state.tasks.filter((t) => t.id !== id),
-                        activeTimer: isTimerActive ? null : state.activeTimer,
-                    };
-                });
-            },
+  fetchActiveTimer: async () => {
+    try {
+      const response = await api.get('/timer/active');
+      if (response.data.data) {
+        const timer = response.data.data;
+        set({
+          activeTimer: {
+            id: timer.id,
+            taskId: timer.taskId,
+            startTime: timer.startTime,
+            isRunning: timer.isRunning,
+            elapsedAtPause: timer.elapsedAtPause,
+            durationLimit: timer.durationLimit,
+          },
+        });
+      } else {
+        set({ activeTimer: null });
+      }
+    } catch (error) {
+      console.error('Failed to fetch active timer', error);
+    }
+  },
 
-            setTaskStatus: (id, status) => {
-                const todayStr = format(new Date(), 'yyyy-MM-dd');
-                set((state) => {
-                    const task = state.tasks.find((t) => t.id === id);
-                    if (!task) return state;
+  addTask: async (taskData) => {
+    const response = await api.post('/tasks', taskData);
+    const newTask = response.data.data;
+    set((state) => ({ tasks: [...state.tasks, newTask] }));
+    return newTask.id;
+  },
 
-                    let activeTimer = state.activeTimer;
-                    let tasks = state.tasks;
+  updateTask: async (id, updates) => {
+    await api.patch(`/tasks/${id}`, updates);
+    set((state) => ({
+      tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+    }));
+  },
 
-                    // If completing, stop timer if active
-                    if (status === 'completed' && activeTimer?.taskId === id) {
-                        const effective = get().getEffectiveElapsed();
-                        tasks = tasks.map(t => t.id === id ? { ...t, timeSpent: (t.timeSpent || 0) + effective } : t);
-                        activeTimer = null;
-                    }
+  deleteTask: async (id) => {
+    await api.delete(`/tasks/${id}`);
+    set((state) => ({
+      tasks: state.tasks.filter((t) => t.id !== id),
+      activeTimer: state.activeTimer?.taskId === id ? null : state.activeTimer,
+    }));
+  },
 
-                    const updatedTasks = tasks.map((t) =>
-                        t.id === id
-                            ? {
-                                ...t,
-                                status,
-                                completedAt: status === 'completed' ? new Date().toISOString() : undefined
-                            }
-                            : t
-                    );
+  setTaskStatus: async (id, status) => {
+    await api.patch(`/tasks/${id}`, { status });
+    set((state) => ({
+      tasks: state.tasks.map((t) =>
+        t.id === id
+          ? {
+              ...t,
+              status,
+              completedAt: status === 'completed' ? new Date().toISOString() : undefined,
+            }
+          : t
+      ),
+    }));
+  },
 
-                    // Update daily logs
-                    const existingLogIndex = state.dailyLogs.findIndex((log) => log.date === todayStr);
-                    let newDailyLogs = [...state.dailyLogs];
+  startTimer: async (taskId, durationMinutes) => {
+    const response = await api.post('/timer/start', { taskId, durationMinutes });
+    const timer = response.data.data;
+    set({
+      activeTimer: {
+        id: timer.id,
+        taskId: timer.taskId,
+        startTime: timer.startTime,
+        isRunning: timer.isRunning,
+        elapsedAtPause: timer.elapsedAtPause,
+        durationLimit: timer.durationLimit,
+      },
+    });
+  },
 
-                    const logUpdate = (log: DailyLog) => {
-                        const completed = status === 'completed'
-                            ? Array.from(new Set([...log.completedTaskIds, id]))
-                            : log.completedTaskIds.filter(tid => tid !== id);
+  pauseTimer: async () => {
+    const { activeTimer } = get();
+    if (!activeTimer?.id) return;
+    const response = await api.post(`/timer/pause/${activeTimer.id}`);
+    const timer = response.data.data;
+    set({
+      activeTimer: {
+        ...activeTimer,
+        isRunning: false,
+        elapsedAtPause: timer.elapsedAtPause,
+      },
+    });
+  },
 
-                        const failed = status === 'failed'
-                            ? Array.from(new Set([...log.failedTaskIds, id]))
-                            : log.failedTaskIds.filter(tid => tid !== id);
+  resumeTimer: async () => {
+    const { activeTimer } = get();
+    if (!activeTimer?.id) return;
+    const response = await api.post(`/timer/resume/${activeTimer.id}`);
+    const timer = response.data.data;
+    set({
+      activeTimer: {
+        ...activeTimer,
+        isRunning: true,
+        startTime: timer.startTime, // Backend updates startTime on resume
+      },
+    });
+  },
 
-                        return { ...log, completedTaskIds: completed, failedTaskIds: failed };
-                    };
+  stopTimer: async (completeTask = false) => {
+    const { activeTimer } = get();
+    if (!activeTimer?.id) return;
+    await api.post(`/timer/stop/${activeTimer.id}`, { completeTask });
 
-                    if (existingLogIndex >= 0) {
-                        newDailyLogs[existingLogIndex] = logUpdate(newDailyLogs[existingLogIndex]);
-                    } else {
-                        newDailyLogs.push(logUpdate({
-                            date: todayStr,
-                            completedTaskIds: [],
-                            failedTaskIds: [],
-                        }));
-                    }
+    // Refresh tasks to get updated timeSpent
+    const taskResponse = await api.get('/tasks');
+    set({ tasks: taskResponse.data.data, activeTimer: null });
+  },
 
-                    return { tasks: updatedTasks, dailyLogs: newDailyLogs, activeTimer };
-                });
-            },
+  getEffectiveElapsed: () => {
+    const { activeTimer } = get();
+    if (!activeTimer) return 0;
+    if (!activeTimer.isRunning) return activeTimer.elapsedAtPause;
 
-            startTimer: (taskId, durationMinutes) => {
-                const state = get();
-                if (state.activeTimer && state.activeTimer.taskId !== taskId) {
-                    state.stopTimer();
-                }
+    return (
+      activeTimer.elapsedAtPause + differenceInSeconds(new Date(), new Date(activeTimer.startTime))
+    );
+  },
 
-                const task = state.tasks.find(t => t.id === taskId);
-                const limit = durationMinutes ? durationMinutes * 60 : (task?.duration ? task.duration * 60 : undefined);
-
-                set((state) => ({
-                    activeTimer: {
-                        taskId,
-                        startTime: new Date().toISOString(),
-                        isRunning: true,
-                        elapsedAtPause: state.activeTimer?.taskId === taskId ? state.activeTimer.elapsedAtPause : 0,
-                        durationLimit: limit
-                    }
-                }));
-            },
-
-            pauseTimer: () => {
-                const state = get();
-                if (!state.activeTimer || !state.activeTimer.isRunning) return;
-
-                const effective = state.getEffectiveElapsed();
-                set((state) => ({
-                    activeTimer: state.activeTimer ? {
-                        ...state.activeTimer,
-                        isRunning: false,
-                        elapsedAtPause: effective
-                    } : null
-                }));
-            },
-
-            stopTimer: () => {
-                const state = get();
-                if (!state.activeTimer) return;
-
-                const effective = state.getEffectiveElapsed();
-                const taskId = state.activeTimer.taskId;
-
-                set((state) => ({
-                    tasks: state.tasks.map(t => t.id === taskId ? { ...t, timeSpent: (t.timeSpent || 0) + effective } : t),
-                    activeTimer: null
-                }));
-            },
-
-            getEffectiveElapsed: () => {
-                const { activeTimer } = get();
-                if (!activeTimer) return 0;
-                if (!activeTimer.isRunning) return activeTimer.elapsedAtPause;
-
-                return activeTimer.elapsedAtPause + differenceInSeconds(new Date(), new Date(activeTimer.startTime));
-            },
-
-            rescheduleMissedTasks: () => {
-                const today = startOfDay(new Date());
-                set((state) => ({
-                    tasks: state.tasks.map(t => {
-                        if (t.status === 'planned' && t.dueDate && isBefore(startOfDay(new Date(t.dueDate)), today)) {
-                            return { ...t, dueDate: format(today, 'yyyy-MM-dd') };
-                        }
-                        return t;
-                    })
-                }));
-            },
-
-            acceptSuggestedPlan: (taskIds) => {
-                set((state) => ({
-                    tasks: state.tasks.map(t =>
-                        taskIds.includes(t.id) && t.status === 'suggested'
-                            ? { ...t, status: 'planned' as TaskStatus, dueDate: format(new Date(), 'yyyy-MM-dd') }
-                            : t
-                    )
-                }));
-            },
-
-            getTasksByDate: (date) => {
-                const target = startOfDay(date);
-                return get().tasks.filter(t => {
-                    if (t.status === 'suggested') return false;
-                    const dateToCompare = t.dueDate ? new Date(t.dueDate) : new Date(t.createdAt);
-                    return isSameDay(startOfDay(dateToCompare), target);
-                });
-            },
-
-            getDailyLogByDate: (date) => {
-                return get().dailyLogs.find((log) => log.date === date);
-            },
-        }),
-        {
-            name: 'devflow-task-store-v4',
-        }
-    )
-);
+  getTasksByDate: (date) => {
+    const target = startOfDay(date);
+    return get().tasks.filter((t) => {
+      if (t.status === 'suggested') return false;
+      const dateToCompare = t.dueDate ? new Date(t.dueDate) : new Date(t.createdAt);
+      return isSameDay(startOfDay(dateToCompare), target);
+    });
+  },
+}));
