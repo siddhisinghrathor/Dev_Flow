@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useAuthStore } from '../store/useAuthStore';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -12,7 +13,7 @@ export const api = axios.create({
 // Add a request interceptor to include the JWT token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('auth_token');
+    const token = useAuthStore.getState().token || localStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -29,24 +30,30 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Avoid infinite loop if refresh itself fails with 401
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/refresh')) {
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('refresh_token');
+        const refreshToken = useAuthStore.getState().refreshToken || localStorage.getItem('refresh_token');
+        if (!refreshToken) throw new Error('No refresh token available');
+
         const response = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
 
         const { accessToken } = response.data.data;
+
+        // Update both store and localStorage
         localStorage.setItem('auth_token', accessToken);
+        useAuthStore.setState({ token: accessToken });
 
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        // Logout user if refresh fails
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user');
-        window.location.reload();
+        // Clear everything using the store's logout logic
+        useAuthStore.getState().logout();
+
+        // Use a small delay before reloading to allow state to settle, 
+        // or just rely on the re-render since App.tsx will see isAuthenticated: false
         return Promise.reject(refreshError);
       }
     }

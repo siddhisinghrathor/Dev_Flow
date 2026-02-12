@@ -5,6 +5,8 @@ import { Heatmap } from './features/heatmap/Heatmap';
 import { Analytics } from './features/analytics/Analytics';
 import { Dashboard } from './features/dashboard/Dashboard';
 import { Settings } from './features/settings/Settings';
+import { AchievementsTab } from './features/achievements/AchievementsTab';
+import { PlaylistsTab } from './features/playlists/PlaylistsTab';
 import { useTaskStore } from './store/useTaskStore';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/Card';
 import { DailyPlanGenerator } from './features/planner/DailyPlanGenerator';
@@ -88,6 +90,10 @@ function App() {
         );
       case 'settings':
         return <Settings />;
+      case 'achievements':
+        return <AchievementsTab />;
+      case 'playlists':
+        return <PlaylistsTab />;
       default:
         return <Dashboard />;
     }

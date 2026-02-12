@@ -3,7 +3,7 @@ import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import rateLimit from 'express-rate-limit';
+
 import { config } from './config';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
@@ -42,15 +42,7 @@ class Server {
         this.app.use(express.json({ limit: '10mb' }));
         this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-        // Rate limiting
-        const limiter = rateLimit({
-            windowMs: config.rateLimit.windowMs,
-            max: config.rateLimit.maxRequests,
-            message: 'Too many requests from this IP, please try again later.',
-            standardHeaders: true,
-            legacyHeaders: false,
-        });
-        this.app.use('/api', limiter);
+
 
         // Request logging
         this.app.use((req, _res, next) => {

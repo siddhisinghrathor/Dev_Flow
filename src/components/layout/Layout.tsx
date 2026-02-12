@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Github, LayoutDashboard, CheckSquare, BarChart2, Settings, Sun, Moon } from 'lucide-react';
+import { Github, LayoutDashboard, CheckSquare, BarChart2, Settings, Sun, Moon, Award, ListMusic } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { cn } from '../../utils/cn';
 import { useThemeStore } from '../../store/useThemeStore';
@@ -56,6 +56,8 @@ export const Layout = ({ children, activeTab, onTabChange }: { children: React.R
                         <SidebarItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => onTabChange('dashboard')} />
                         <SidebarItem icon={<CheckSquare size={20} />} label="Tasks" active={activeTab === 'tasks'} onClick={() => onTabChange('tasks')} />
                         <SidebarItem icon={<BarChart2 size={20} />} label="Analytics" active={activeTab === 'analytics'} onClick={() => onTabChange('analytics')} />
+                        <SidebarItem icon={<Award size={20} />} label="Achievements" active={activeTab === 'achievements'} onClick={() => onTabChange('achievements')} />
+                        <SidebarItem icon={<ListMusic size={20} />} label="Playlists" active={activeTab === 'playlists'} onClick={() => onTabChange('playlists')} />
                         <SidebarItem icon={<Settings size={20} />} label="Settings" active={activeTab === 'settings'} onClick={() => onTabChange('settings')} />
                     </nav>
 

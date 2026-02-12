@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTaskStore } from '../../store/useTaskStore';
 import { useAppStore } from '../../store/useAppStore';
 import { usePlaylistStore } from '../../store/usePlaylistStore';
@@ -17,10 +17,9 @@ import {
   Plus,
   Play,
   Pause,
-  Square,
   Clock,
   ArrowRight,
-  ZapOff,
+  ListMusic,
 } from 'lucide-react';
 import {
   format,
@@ -33,7 +32,7 @@ import {
 } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
-import type { Category, Priority, Task } from '../../types';
+import type { Category, Priority } from '../../types';
 
 export const Dashboard = () => {
   const {
@@ -43,10 +42,9 @@ export const Dashboard = () => {
     pauseTimer,
     stopTimer,
     getEffectiveElapsed,
-    setTaskStatus,
     dailyLogs,
   } = useTaskStore();
-  const { preferences, goals, addGoal } = useAppStore();
+  const { preferences, goals } = useAppStore();
   const { playlists, activePlaylistId } = usePlaylistStore();
 
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
@@ -82,11 +80,7 @@ export const Dashboard = () => {
     const todayTasks = tasks.filter((t) =>
       t.dueDate
         ? isWithinInterval(new Date(t.dueDate), { start: today, end: today })
-        : // Fallback for tasks without dueDate - treat as today if created today? Or simple backlog.
-          // Better logic: Tasks are 'Today's Focus' if they are explicitly planned for today OR are active.
-          // For simplified dashboard, let's assume 'planned' tasks without due date are NOT today unless manually added.
-          // But for now, existing logic:
-          isWithinInterval(new Date(t.createdAt), { start: today, end: today })
+        : isWithinInterval(new Date(t.createdAt), { start: today, end: today })
     );
 
     const weekTasks = tasks.filter((t) =>
@@ -257,7 +251,7 @@ export const Dashboard = () => {
                         <Zap size={18} /> Focus Mode
                       </Button>
                       <Button
-                        onClick={() => setTaskStatus(activeTask.id, 'completed')}
+                        onClick={() => stopTimer(true)}
                         className="flex-1 gap-2 bg-green-600 text-white hover:bg-green-700"
                       >
                         <CheckCircle2 size={18} /> Complete
@@ -286,19 +280,48 @@ export const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="mt-8 space-y-4">
-                <div className="flex items-end justify-between">
-                  <span className="text-sm font-medium">Daily Velocity</span>
-                  <span className="text-xl font-black">{stats.todayProgress.toFixed(0)}%</span>
+              <div className="mt-8 space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-end justify-between">
+                    <span className="text-sm font-medium">Daily Velocity</span>
+                    <span className="text-xl font-black">{stats.todayProgress.toFixed(0)}%</span>
+                  </div>
+                  <div className="h-3 w-full overflow-hidden rounded-full bg-white/20">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${stats.todayProgress}%` }}
+                      transition={{ duration: 1, ease: 'easeOut' }}
+                      className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)]"
+                    />
+                  </div>
                 </div>
-                <div className="h-3 w-full overflow-hidden rounded-full bg-white/20">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${stats.todayProgress}%` }}
-                    transition={{ duration: 1, ease: 'easeOut' }}
-                    className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)]"
-                  />
-                </div>
+
+                {goals[0] && (
+                  <div className="space-y-3 pt-4 border-t border-white/10">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Goal Objectives</span>
+                      <span className="text-[10px] font-black opacity-60">{goals[0].tasks.length} tasks</span>
+                    </div>
+                    <div className="space-y-2 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+                      {tasks.filter(t => t.parentId === goals[0].id).slice(0, 3).map(task => (
+                        <div key={task.id} className="flex items-center gap-3 bg-white/10 p-2 rounded-lg border border-white/5 group hover:bg-white/20 transition-all">
+                          <div className={cn(
+                            "h-2 w-2 rounded-full",
+                            task.status === 'completed' ? "bg-green-400" : "bg-white/40"
+                          )} />
+                          <span className={cn(
+                            "text-xs font-bold",
+                            task.status === 'completed' && "opacity-50 line-through"
+                          )}>{task.title}</span>
+                        </div>
+                      ))}
+                      {tasks.filter(t => t.parentId === goals[0].id).length === 0 && (
+                        <p className="text-[10px] italic opacity-40">No tasks linked to this goal yet.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-4 text-xs font-medium text-primary-50 opacity-80">
                   <div className="flex items-center gap-1">
                     <span className="h-2 w-2 rounded-full bg-white" /> {stats.todayCompleted} Done
@@ -307,12 +330,6 @@ export const Dashboard = () => {
                     <span className="h-2 w-2 rounded-full bg-white/40" /> {stats.pendingToday}{' '}
                     Pending
                   </div>
-                  {stats.failedToday > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="h-2 w-2 rounded-full bg-red-400" /> {stats.failedToday}{' '}
-                      Failed
-                    </div>
-                  )}
                 </div>
               </div>
             </CardContent>
@@ -420,73 +437,97 @@ export const Dashboard = () => {
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-bold uppercase text-muted-foreground">
                 Today's Focus
               </CardTitle>
+              <span className="text-[10px] font-black bg-primary-50 text-primary-600 px-2 py-1 rounded-full uppercase tracking-tighter">
+                {stats.pendingToday} Pending
+              </span>
             </CardHeader>
             <CardContent className="space-y-3">
               {stats.todayTasks
-                .filter(
-                  (t) =>
-                    t.status === 'planned' || t.status === 'suggested' || t.status === 'completed'
-                )
+                .filter((t) => t.status === 'planned' || t.status === 'suggested')
                 .slice(0, 5)
                 .map((task) => (
                   <div
                     key={task.id}
-                    className="group flex items-center justify-between rounded-lg p-2 transition-all hover:bg-accent/50"
+                    className="group flex items-center justify-between rounded-xl p-3 bg-accent/5 transition-all hover:bg-accent/20 border border-transparent hover:border-accent"
                   >
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() =>
-                          setTaskStatus(
-                            task.id,
-                            task.status === 'completed' ? 'planned' : 'completed'
-                          )
-                        }
+                        onClick={() => stopTimer(true)}
+                        className="h-5 w-5 rounded-full border-2 border-primary-200 transition-colors hover:border-primary-500 flex items-center justify-center group-hover:bg-primary-50"
                       >
-                        {task.status === 'completed' ? (
-                          <CheckCircle2 size={16} className="text-primary-500" />
-                        ) : (
-                          <div className="h-4 w-4 rounded-full border border-muted-foreground" />
-                        )}
+                        <div className="h-2 w-2 rounded-full bg-primary-500 opacity-0 group-hover:opacity-20" />
                       </button>
-                      <span
-                        className={cn(
-                          'text-xs font-semibold',
-                          task.status === 'completed' &&
-                            'text-muted-foreground line-through opacity-60'
-                        )}
-                      >
-                        {task.title}
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold tracking-tight">{task.title}</span>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">{task.category}</span>
+                      </div>
                     </div>
-                    {!activeTimer && (task.status === 'planned' || task.status === 'suggested') && (
+                    {!activeTimer && (
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 bg-white"
                         onClick={() => startTimer(task.id)}
                       >
-                        <Play size={12} />
+                        <Play size={12} fill="currentColor" />
                       </Button>
                     )}
                   </div>
                 ))}
-              {stats.todayTasks.length === 0 && (
-                <p className="py-4 text-center text-xs italic text-muted-foreground">
-                  No tasks planned for today.
-                </p>
+              {stats.pendingToday === 0 && (
+                <div className="py-8 text-center flex flex-col items-center gap-2">
+                  <div className="h-12 w-12 rounded-full bg-green-50 flex items-center justify-center text-green-500">
+                    <CheckCircle2 size={24} />
+                  </div>
+                  <p className="text-xs font-bold text-muted-foreground italic">All clear! Today's mission accomplished.</p>
+                </div>
               )}
               <Button
                 variant="ghost"
-                className="h-8 w-full gap-2 text-[10px] font-bold uppercase tracking-widest"
+                className="h-10 w-full gap-2 text-[10px] font-black uppercase tracking-widest hover:bg-accent"
               >
-                View all tasks <ArrowRight size={12} />
+                View full backlog <ArrowRight size={12} />
               </Button>
             </CardContent>
           </Card>
+
+          {activePlaylist && (
+            <Card className="border-primary-500/20 bg-primary-50/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-black uppercase tracking-widest text-primary-600 flex items-center gap-2">
+                  <ListMusic size={14} /> Playlist Progress
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-sm font-bold truncate pr-4">{activePlaylist.title}</h4>
+                    <span className="text-xs font-black">Day 1/{activePlaylist.durationDays}</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-accent overflow-hidden">
+                    <div
+                      className="h-full bg-primary-500"
+                      style={{ width: `${(1 / activePlaylist.durationDays) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-white p-3 rounded-xl border flex flex-col gap-1">
+                    <span className="text-[10px] font-black text-muted-foreground uppercase">Tasks Done</span>
+                    <span className="text-lg font-black">{activePlaylist.tasks?.filter((t: any) => t.status === 'completed').length || 0}</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border flex flex-col gap-1">
+                    <span className="text-[10px] font-black text-muted-foreground uppercase">Remaining</span>
+                    <span className="text-lg font-black">{activePlaylist.tasks?.filter((t: any) => t.status === 'planned').length || 0}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -500,7 +541,7 @@ export const Dashboard = () => {
     </div>
   );
 };
-// ... (modals remain unchanged)
+
 const QuickAddTaskModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { addTask } = useTaskStore();
   const [title, setTitle] = useState('');
@@ -668,7 +709,7 @@ const PlaylistModal = ({
     return (
       <Modal isOpen={isOpen} onClose={onClose} title="Weekly Playlists">
         <div className="py-10 text-center italic text-muted-foreground">
-          No active playlists. Create one in Settings!
+          No active playlists. Create one in Playlists tab!
         </div>
       </Modal>
     );

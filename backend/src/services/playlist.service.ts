@@ -1,16 +1,31 @@
 import { prisma } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
-import { CreatePlaylistInput, UpdatePlaylistInput } from '../validators/schemas';
-import { CreateTaskInput } from '../validators/schemas';
 import { activityLogService } from './activityLog.service';
+import { CreateTaskInput } from '../validators/schemas';
 
 export class PlaylistService {
-    async createPlaylist(userId: string, data: CreatePlaylistInput) {
+    async createPlaylist(userId: string, data: any) {
+        const { tasks, ...playlistData } = data;
         const playlist = await prisma.playlist.create({
             data: {
-                ...data,
+                ...playlistData,
                 userId,
+                tasks: tasks ? {
+                    create: tasks.map((t: any) => ({
+                        title: t.title,
+                        description: t.description,
+                        category: t.category,
+                        priority: t.priority || 'medium',
+                        duration: t.duration,
+                        playlistDayIndex: t.dayIndex,
+                        userId,
+                        status: 'planned'
+                    }))
+                } : undefined
             },
+            include: {
+                tasks: true
+            }
         });
 
         await activityLogService.log({
@@ -36,7 +51,9 @@ export class PlaylistService {
                         status: true,
                         category: true,
                         priority: true,
-                    },
+                        duration: true,
+                        playlistDayIndex: true,
+                    } as any,
                 },
             },
             orderBy: { createdAt: 'desc' },
@@ -69,12 +86,14 @@ export class PlaylistService {
         return playlist;
     }
 
-    async updatePlaylist(userId: string, playlistId: string, data: UpdatePlaylistInput) {
+    async updatePlaylist(userId: string, playlistId: string, data: any) {
         await this.getPlaylistById(userId, playlistId); // Verify ownership
+
+        const { tasks, ...playlistData } = data;
 
         const playlist = await prisma.playlist.update({
             where: { id: playlistId },
-            data,
+            data: playlistData,
             include: {
                 tasks: {
                     where: { deletedAt: null },

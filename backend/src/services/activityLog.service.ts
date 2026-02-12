@@ -18,7 +18,7 @@ export class ActivityLogService {
                 entityType: data.entityType,
                 entityId: data.entityId,
                 taskId: data.taskId,
-                metadata: data.metadata,
+                metadata: data.metadata ? JSON.stringify(data.metadata) : null,
             },
         });
     }

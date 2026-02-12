@@ -17,6 +17,8 @@ export interface Task {
     recurrence: Recurrence;
     parentId?: string; // For tasks belonging to goals or playlists
     timeSpent?: number; // in seconds
+    playlistId?: string;
+    playlistDayIndex?: number;
 }
 
 export interface TimerSession {
@@ -45,7 +47,8 @@ export interface Playlist {
     title: string;
     description?: string;
     category: Category;
-    tasks: Omit<Task, 'id' | 'createdAt' | 'status'>[];
+    durationDays: number;
+    tasks: Task[];
 }
 
 export interface Achievement {

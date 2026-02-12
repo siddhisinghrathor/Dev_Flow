@@ -79,6 +79,15 @@ export const createPlaylistSchema = z.object({
     title: z.string().min(1, 'Title is required').max(200),
     description: z.string().optional(),
     category: z.enum(['frontend', 'backend', 'dsa', 'health', 'career', 'general']),
+    durationDays: z.number().int().positive().default(7),
+    tasks: z.array(z.object({
+        title: z.string().min(1),
+        description: z.string().optional(),
+        category: z.enum(['frontend', 'backend', 'dsa', 'health', 'career', 'general']),
+        priority: z.enum(['low', 'medium', 'high']),
+        duration: z.number().int().positive().optional(),
+        dayIndex: z.number().int().positive(),
+    })).optional(),
 });
 
 export const updatePlaylistSchema = createPlaylistSchema.partial();

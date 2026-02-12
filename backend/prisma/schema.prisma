@@ -93,6 +93,7 @@ model Task {
   
   playlistId  String?
   playlist    Playlist? @relation(fields: [playlistId], references: [id], onDelete: SetNull)
+  playlistDayIndex Int?   // For tasks belonging to a specific day in a playlist
   
   timerSessions TimerSession[]
   activityLogs  ActivityLog[]
@@ -150,6 +151,7 @@ model Playlist {
   title       String
   description String?
   category    String
+  durationDays Int      @default(7)
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
