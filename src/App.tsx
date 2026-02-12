@@ -16,10 +16,18 @@ import { useAppStore } from './store/useAppStore';
 import { usePlaylistStore } from './store/usePlaylistStore';
 
 function App() {
-  const { fetchTasks, fetchActiveTimer } = useTaskStore();
-  const { fetchGoals, fetchPreferences, fetchNotifications } = useAppStore();
-  const { fetchPlaylists } = usePlaylistStore();
-  const { isAuthenticated } = useAuthStore();
+  const fetchTasks = useTaskStore(state => state.fetchTasks);
+  const fetchActiveTimer = useTaskStore(state => state.fetchActiveTimer);
+  const fetchDailyLogs = useTaskStore(state => state.fetchDailyLogs);
+  const dailyLogs = useTaskStore(state => state.dailyLogs);
+
+  const fetchGoals = useAppStore(state => state.fetchGoals);
+  const fetchPreferences = useAppStore(state => state.fetchPreferences);
+  const fetchNotifications = useAppStore(state => state.fetchNotifications);
+
+  const fetchPlaylists = usePlaylistStore(state => state.fetchPlaylists);
+
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const [activeTab, setActiveTab] = useState('dashboard');
 
   useEffect(() => {
@@ -30,6 +38,7 @@ function App() {
       fetchNotifications();
       fetchActiveTimer();
       fetchPlaylists();
+      fetchDailyLogs();
     }
   }, [
     isAuthenticated,
@@ -39,11 +48,12 @@ function App() {
     fetchNotifications,
     fetchActiveTimer,
     fetchPlaylists,
+    fetchDailyLogs,
   ]);
 
   if (!isAuthenticated) {
     return (
-      <Layout activeTab="dashboard" onTabChange={() => {}}>
+      <Layout activeTab="dashboard" onTabChange={() => { }}>
         <AuthForm />
       </Layout>
     );

@@ -41,17 +41,28 @@ export const useTaskStore = create<TaskState>()((set, get) => ({
     set({ isLoading: true });
     try {
       const response = await api.get('/tasks');
-      set({ tasks: response.data.data });
+      set({ tasks: response.data.data.tasks || response.data.data });
     } finally {
       set({ isLoading: false });
     }
   },
 
   fetchDailyLogs: async () => {
-    // Analytics endpoint provides dashboard stats which includes logs
-    const response = await api.get('/analytics/dashboard');
-    // Map backend stats to DailyLog format if needed, or use them directly in UI
-    // For now, let's assume we fetch them separately or they are part of tasks
+    try {
+      const response = await api.get('/analytics/heatmap');
+      const heatmap: Record<string, number> = response.data.data;
+
+      // Convert backend heatmap (Record<string, number>) to DailyLog[]
+      const logs: DailyLog[] = Object.entries(heatmap).map(([date, count]) => ({
+        date,
+        completedTaskIds: Array(count).fill('task-placeholder'),
+        failedTaskIds: [],
+      }));
+
+      set({ dailyLogs: logs });
+    } catch (error) {
+      console.error('Failed to fetch daily logs', error);
+    }
   },
 
   fetchActiveTimer: async () => {
@@ -105,10 +116,10 @@ export const useTaskStore = create<TaskState>()((set, get) => ({
       tasks: state.tasks.map((t) =>
         t.id === id
           ? {
-              ...t,
-              status,
-              completedAt: status === 'completed' ? new Date().toISOString() : undefined,
-            }
+            ...t,
+            status,
+            completedAt: status === 'completed' ? new Date().toISOString() : undefined,
+          }
           : t
       ),
     }));
@@ -164,7 +175,7 @@ export const useTaskStore = create<TaskState>()((set, get) => ({
 
     // Refresh tasks to get updated timeSpent
     const taskResponse = await api.get('/tasks');
-    set({ tasks: taskResponse.data.data, activeTimer: null });
+    set({ tasks: taskResponse.data.data.tasks || taskResponse.data.data, activeTimer: null });
   },
 
   getEffectiveElapsed: () => {

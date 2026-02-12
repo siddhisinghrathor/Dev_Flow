@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useTaskStore } from '../../store/useTaskStore';
 import { useAppStore } from '../../store/useAppStore';
 import { differenceInMinutes, parseISO, isPast } from 'date-fns';
@@ -6,7 +6,7 @@ import { differenceInMinutes, parseISO, isPast } from 'date-fns';
 export const NotificationManager = () => {
     const { activeTimer, tasks, stopTimer, setTaskStatus } = useTaskStore();
     const { preferences, pushNotification } = useAppStore();
-    const intervalRef = useRef<NodeJS.Timeout>();
+
 
     // Request permissions on mount if enabled
     useEffect(() => {

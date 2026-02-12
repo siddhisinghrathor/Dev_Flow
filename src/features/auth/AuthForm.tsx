@@ -33,9 +33,9 @@ export const AuthForm = () => {
     try {
       const endpoint = isLogin ? '/auth/login' : '/auth/register';
       const response = await api.post(endpoint, formData);
-      const { user, tokens } = response.data.data;
+      const { user, accessToken, refreshToken } = response.data.data;
 
-      setAuth(user, tokens.accessToken, tokens.refreshToken);
+      setAuth(user, accessToken, refreshToken);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Authentication failed. Please try again.');
     } finally {

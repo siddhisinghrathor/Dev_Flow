@@ -15,8 +15,9 @@ router.use('/tasks', taskRoutes);
 router.use('/goals', goalRoutes);
 router.use('/playlists', playlistRoutes);
 router.use('/timers', timerRoutes);
+router.use('/timer', timerRoutes);
 router.use('/analytics', analyticsRoutes);
-router.use('/users', userRoutes);
+router.use('/user', userRoutes);
 router.use('/notifications', notificationRoutes);
 
 // Health check

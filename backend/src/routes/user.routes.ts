@@ -7,6 +7,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/profile', userController.getProfile);
+router.patch('/profile', userController.updatePreferences);
 router.patch('/preferences', userController.updatePreferences);
 router.get('/stats', userController.getStats);
 
