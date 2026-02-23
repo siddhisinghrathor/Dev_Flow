@@ -1,5 +1,5 @@
-import type { Task, Goal, UserPreferences, DailyLog, Category } from '../types';
-import { differenceInDays, startOfDay, isSameDay } from 'date-fns';
+import type { Task, Goal, UserPreferences, DailyLog } from '../types';
+import { isSameDay } from 'date-fns';
 
 /**
  * Generates a list of suggested tasks based on current goals, recent activity, and user preferences.
@@ -7,12 +7,11 @@ import { differenceInDays, startOfDay, isSameDay } from 'date-fns';
 export const generateDailyPlan = (
     currentTasks: Task[],
     goals: Goal[],
-    logs: DailyLog[],
+    _logs: DailyLog[],
     preferences: UserPreferences
 ): Omit<Task, 'id' | 'createdAt' | 'status'>[] => {
 
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
 
     // Count tasks already scheduled for today
     const todayTasksCount = currentTasks.filter(t =>

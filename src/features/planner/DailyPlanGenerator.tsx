@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useTaskStore } from '../../store/useTaskStore';
 import { useAppStore } from '../../store/useAppStore';
 import { generateDailyPlan } from '../../lib/smartPlanner';
@@ -22,7 +22,7 @@ export const DailyPlanGenerator = () => {
 
     const handleAccept = (idx: number) => {
         const suggestion = suggestions[idx];
-        addTask({ ...suggestion, status: 'planned' });
+        addTask(suggestion);
         setSuggestions(prev => prev.filter((_, i) => i !== idx));
     };
 
@@ -31,7 +31,7 @@ export const DailyPlanGenerator = () => {
     };
 
     const handleAcceptAll = () => {
-        suggestions.forEach(s => addTask({ ...s, status: 'planned' }));
+        suggestions.forEach(s => addTask(s));
         setSuggestions([]);
         setIsVisible(false);
     };
@@ -110,7 +110,7 @@ export const DailyPlanGenerator = () => {
                             ) : (
                                 <div className="text-center py-6 text-muted-foreground">
                                     <p>All suggestions handled! You're ready to start.</p>
-                                    <Button variant="link" onClick={() => setIsVisible(false)}>Close Planner</Button>
+                                    <Button variant="ghost" onClick={() => setIsVisible(false)}>Close Planner</Button>
                                 </div>
                             )}
                         </CardContent>

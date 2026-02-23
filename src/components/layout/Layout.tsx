@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Github, LayoutDashboard, CheckSquare, BarChart2, Settings, Sun, Moon, Award, ListMusic } from 'lucide-react';
+import {  LayoutDashboard, CheckSquare, BarChart2, Settings, Sun, Moon, Award, ListMusic } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { cn } from '../../utils/cn';
 import { useThemeStore } from '../../store/useThemeStore';
@@ -89,7 +89,7 @@ export const Layout = ({ children, activeTab, onTabChange }: { children: React.R
                     </div>
                     <div className="flex items-center space-x-4">
                         <Button variant="outline" size="sm" className="space-x-2">
-                            <Github size={16} />
+                           
                             <span>Sync GitHub</span>
                         </Button>
                         <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold border border-primary-200">

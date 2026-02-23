@@ -107,7 +107,7 @@ export const TaskDetailPanel = ({ task, onClose }: TaskDetailPanelProps) => {
                                                 <Pause size={16} className="mr-2" /> Pause
                                             </Button>
                                         )}
-                                        <Button variant="secondary" size="icon" onClick={stopTimer} disabled={!isTimerActive}>
+                                        <Button variant="secondary" size="icon" onClick={() => stopTimer()} disabled={!isTimerActive}>
                                             <Square size={16} />
                                         </Button>
                                     </div>

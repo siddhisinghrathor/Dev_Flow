@@ -715,7 +715,8 @@ const PlaylistModal = ({
     );
 
   const handleApplyTask = (taskData: any) => {
-    addTask({ ...taskData, recurrence: 'none' });
+    const { id: _id, createdAt: _ca, status: _s, ...rest } = taskData;
+    addTask({ ...rest, recurrence: 'none' });
     onClose();
   };
 

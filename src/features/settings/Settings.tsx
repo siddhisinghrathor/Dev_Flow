@@ -3,7 +3,7 @@ import { useTaskStore } from '../../store/useTaskStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { User, Settings as SettingsIcon, Bell, Shield, Download, Trash2, Moon, Sun, Monitor, CalendarClock, Volume2 } from 'lucide-react';
+import { User, Settings as SettingsIcon, Bell, Download, Trash2, Moon, Sun, Monitor, CalendarClock } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useState } from 'react';

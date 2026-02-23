@@ -26,6 +26,7 @@ interface TaskState {
   resumeTimer: () => Promise<void>;
   stopTimer: (completeTask?: boolean) => Promise<void>;
   getEffectiveElapsed: () => number;
+  rescheduleMissedTasks: () => Promise<void>;
 
   // Helpers
   getTasksByDate: (date: Date) => Task[];
@@ -195,5 +196,19 @@ export const useTaskStore = create<TaskState>()((set, get) => ({
       const dateToCompare = t.dueDate ? new Date(t.dueDate) : new Date(t.createdAt);
       return isSameDay(startOfDay(dateToCompare), target);
     });
+  },
+
+  rescheduleMissedTasks: async () => {
+    const { tasks, updateTask } = get();
+    const today = startOfDay(new Date());
+    const missedTasks = tasks.filter(t =>
+      t.status === 'planned' &&
+      t.dueDate &&
+      new Date(t.dueDate) < today
+    );
+
+    await Promise.all(missedTasks.map(t =>
+      updateTask(t.id, { dueDate: new Date().toISOString() })
+    ));
   },
 }));

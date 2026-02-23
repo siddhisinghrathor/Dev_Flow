@@ -4,7 +4,7 @@ import { TaskItem } from './TaskItem';
 import { TaskDetailPanel } from './TaskDetailPanel';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Plus, Search, LayoutGrid, List, Sparkles } from 'lucide-react';
+import { Plus, Search, LayoutGrid, List } from 'lucide-react';
 import type { Category, Priority, Task } from '../../types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useKeyboardShortcut } from '../../hooks/useKeyboardShortcut';
