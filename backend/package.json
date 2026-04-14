@@ -3,10 +3,11 @@
     "version": "1.0.0",
     "description": "Production-grade backend for DevFlow productivity platform",
     "main": "dist/server.js",
+    "type": "module",
     "scripts": {
         "dev": "tsx watch src/server.ts",
         "build": "tsc",
-        "start": "node dist/server.js",
+        "start": "tsx src/server.ts",
         "prisma:generate": "prisma generate",
         "prisma:migrate": "prisma migrate dev",
         "prisma:studio": "prisma studio",

@@ -44,11 +44,7 @@ class Server {
 
 
 
-        // Request logging
-        this.app.use((req, _res, next) => {
-            logger.http(`${req.method} ${req.url}`);
-            next();
-        });
+
     }
 
     private setupRoutes() {

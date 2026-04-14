@@ -78,9 +78,7 @@ A **production-grade Node.js backend** with the following features:
 - ✅ Migration system
 
 ### 📊 Monitoring & Logging
-- ✅ Winston logger
-- ✅ File & console logging
-- ✅ Request logging
+- ✅ Winston logger with console transport
 - ✅ Error tracking
 - ✅ Query logging (dev)
 
@@ -130,7 +128,6 @@ backend/
 ├── prisma/
 │   ├── schema.prisma             # Database schema
 │   └── seed.ts                   # Seed data
-├── logs/                         # Log files
 ├── .env                          # Environment variables
 ├── .env.example                  # Environment template
 ├── docker-compose.yml            # Docker services

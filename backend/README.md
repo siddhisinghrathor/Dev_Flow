@@ -183,7 +183,6 @@ backend/
 │   ├── utils/                 # Utilities
 │   ├── websocket/             # WebSocket handlers
 │   └── server.ts              # Main server file
-├── logs/                      # Application logs
 ├── .env                       # Environment variables
 ├── docker-compose.yml         # Docker services
 ├── package.json
@@ -203,8 +202,7 @@ backend/
 
 ## 📊 Monitoring
 
-- Winston logger with file and console transports
-- Request logging
+- Winston logger with console transport
 - Error tracking with stack traces (dev only)
 - Database query logging (dev only)
 
