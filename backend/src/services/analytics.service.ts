@@ -136,7 +136,7 @@ export class AnalyticsService {
         // Group by date
         const heatmap: Record<string, number> = {};
 
-        tasks.forEach((task: any) => {
+        tasks.forEach((task) => {
             if (task.completedAt) {
                 const date = task.completedAt.toISOString().split('T')[0];
                 heatmap[date] = (heatmap[date] || 0) + 1;
@@ -185,7 +185,7 @@ export class AnalyticsService {
             const dayEnd = new Date(date);
             dayEnd.setHours(23, 59, 59, 999);
 
-            const dayTasks = tasks.filter((t: any) => {
+            const dayTasks = tasks.filter((t: { createdAt: Date | string }) => {
                 const createdDate = new Date(t.createdAt);
                 return createdDate >= dayStart && createdDate <= dayEnd;
             });
@@ -377,8 +377,8 @@ export class AnalyticsService {
             },
             goals: {
                 total: goals.length,
-                completed: goals.filter((g: any) => g.isCompleted).length,
-                inProgress: goals.filter((g: any) => !g.isCompleted).length,
+                completed: goals.filter((g: { isCompleted: boolean }) => g.isCompleted).length,
+                inProgress: goals.filter((g: { isCompleted: boolean }) => !g.isCompleted).length,
             },
         };
     }

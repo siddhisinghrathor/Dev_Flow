@@ -13,6 +13,7 @@
         "forceConsistentCasingInFileNames": true,
         "resolveJsonModule": true,
         "moduleResolution": "node",
+        "types": ["node", "express", "jsonwebtoken", "bcryptjs", "compression", "cors"],
         "declaration": true,
         "declarationMap": true,
         "sourceMap": true,
