@@ -279,13 +279,13 @@ export class TimerService {
             },
         });
 
-        const totalTime = sessions.reduce((sum, s) => sum + (s.totalDuration || 0), 0);
+        const totalTime = sessions.reduce((sum: number, s: any) => sum + (s.totalDuration || 0), 0);
         const sessionCount = sessions.length;
         const avgSessionDuration = sessionCount > 0 ? Math.round(totalTime / sessionCount) : 0;
 
         // Group by category
         const byCategory: Record<string, number> = {};
-        sessions.forEach(s => {
+        sessions.forEach((s: any) => {
             const cat = s.task.category;
             byCategory[cat] = (byCategory[cat] || 0) + (s.totalDuration || 0);
         });

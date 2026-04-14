@@ -1,4 +1,4 @@
-import express, { Application } from 'express';
+import express, { Application, Request, Response } from 'express';
 import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -52,7 +52,7 @@ class Server {
         this.app.use(`/api/${config.apiVersion}`, routes);
 
         // Root endpoint
-        this.app.get('/', (_req, res) => {
+        this.app.get('/', (_req: Request, res: Response) => {
             res.json({
                 success: true,
                 message: 'DevFlow API Server',
@@ -62,7 +62,7 @@ class Server {
         });
 
         // 404 handler
-        this.app.use((_req, res) => {
+        this.app.use((_req: Request, res: Response) => {
             res.status(404).json({
                 success: false,
                 message: 'Route not found',

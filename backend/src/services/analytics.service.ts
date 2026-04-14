@@ -185,7 +185,7 @@ export class AnalyticsService {
             const dayEnd = new Date(date);
             dayEnd.setHours(23, 59, 59, 999);
 
-            const dayTasks = tasks.filter(t => {
+            const dayTasks = tasks.filter((t: any) => {
                 const createdDate = new Date(t.createdAt);
                 return createdDate >= dayStart && createdDate <= dayEnd;
             });
@@ -193,8 +193,8 @@ export class AnalyticsService {
             trends.push({
                 date: dateStr,
                 created: dayTasks.length,
-                completed: dayTasks.filter(t => t.status === 'completed').length,
-                failed: dayTasks.filter(t => t.status === 'failed').length,
+                completed: dayTasks.filter((t: any) => t.status === 'completed').length,
+                failed: dayTasks.filter((t: any) => t.status === 'failed').length,
             });
         }
 
@@ -224,7 +224,7 @@ export class AnalyticsService {
 
         const breakdown: Record<string, { count: number; timeSpent: number }> = {};
 
-        tasks.forEach(task => {
+        tasks.forEach((task: any) => {
             if (!breakdown[task.category]) {
                 breakdown[task.category] = { count: 0, timeSpent: 0 };
             }
@@ -359,8 +359,8 @@ export class AnalyticsService {
             }),
         ]);
 
-        const completed = tasks.filter(t => t.status === 'completed').length;
-        const failed = tasks.filter(t => t.status === 'failed').length;
+        const completed = tasks.filter((t: any) => t.status === 'completed').length;
+        const failed = tasks.filter((t: any) => t.status === 'failed').length;
         const totalTime = timerStats._sum.totalDuration || 0;
 
         return {
@@ -377,8 +377,8 @@ export class AnalyticsService {
             },
             goals: {
                 total: goals.length,
-                completed: goals.filter(g => g.isCompleted).length,
-                inProgress: goals.filter(g => !g.isCompleted).length,
+                completed: goals.filter((g: any) => g.isCompleted).length,
+                inProgress: goals.filter((g: any) => !g.isCompleted).length,
             },
         };
     }

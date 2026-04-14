@@ -12,14 +12,14 @@ const prismaClientSingleton = () => {
 };
 
 declare global {
-    var prisma: undefined | ReturnType<typeof prismaClientSingleton>;
+    var prisma: PrismaClient | undefined;
 }
 
 const prisma = globalThis.prisma ?? prismaClientSingleton();
 
 // Log queries in development
 if (process.env.NODE_ENV === 'development') {
-    prisma.$on('query', (e) => {
+    (prisma as any).$on('query', (e: { query: string; duration: number }) => {
         logger.debug('Query: ' + e.query);
         logger.debug('Duration: ' + e.duration + 'ms');
     });

@@ -247,7 +247,7 @@ export class TaskService {
             select: { goalId: true },
         });
 
-        const goalIds = [...new Set(affectedTasks.map(t => t.goalId).filter(Boolean))] as string[];
+        const goalIds = [...new Set(affectedTasks.map((t: any) => t.goalId).filter(Boolean))] as string[];
 
         for (const goalId of goalIds) {
             await this.updateGoalProgress(goalId);
@@ -268,7 +268,7 @@ export class TaskService {
 
         if (!goal || goal.tasks.length === 0) return;
 
-        const completedTasks = goal.tasks.filter(t => t.status === 'completed').length;
+        const completedTasks = goal.tasks.filter((t: any) => t.status === 'completed').length;
         const progress = Math.round((completedTasks / goal.tasks.length) * 100);
 
         await prisma.goal.update({

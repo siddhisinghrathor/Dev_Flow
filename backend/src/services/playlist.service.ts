@@ -178,7 +178,7 @@ export class PlaylistService {
         });
 
         // Clone tasks
-        const tasksToClone = originalPlaylist.tasks.map(task => ({
+        const tasksToClone = originalPlaylist.tasks.map((task: any) => ({
             userId,
             playlistId: newPlaylist.id,
             title: task.title,
@@ -209,9 +209,9 @@ export class PlaylistService {
         const playlist = await this.getPlaylistById(userId, playlistId);
 
         const totalTasks = playlist.tasks.length;
-        const completedTasks = playlist.tasks.filter(t => t.status === 'completed').length;
-        const failedTasks = playlist.tasks.filter(t => t.status === 'failed').length;
-        const pendingTasks = playlist.tasks.filter(t => t.status === 'planned').length;
+        const completedTasks = playlist.tasks.filter((t: any) => t.status === 'completed').length;
+        const failedTasks = playlist.tasks.filter((t: any) => t.status === 'failed').length;
+        const pendingTasks = playlist.tasks.filter((t: any) => t.status === 'planned').length;
 
         const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 

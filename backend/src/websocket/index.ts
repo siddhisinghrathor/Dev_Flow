@@ -21,7 +21,7 @@ export class WebSocketService {
     }
 
     private setupMiddleware() {
-        this.io.use((socket, next) => {
+        this.io.use((socket: any, next: (err?: Error) => void) => {
             const token = socket.handshake.auth.token;
 
             if (!token) {
@@ -39,7 +39,7 @@ export class WebSocketService {
     }
 
     private setupEventHandlers() {
-        this.io.on('connection', (socket) => {
+        this.io.on('connection', (socket: any) => {
             const userId = socket.data.userId;
             logger.info(`User connected: ${userId} (${socket.id})`);
 
@@ -65,12 +65,12 @@ export class WebSocketService {
             });
 
             // Handle timer sync
-            socket.on('timer:sync', (data) => {
+            socket.on('timer:sync', (data: any) => {
                 socket.to(`user:${userId}`).emit('timer:update', data);
             });
 
             // Handle task updates
-            socket.on('task:update', (data) => {
+            socket.on('task:update', (data: any) => {
                 socket.to(`user:${userId}`).emit('task:updated', data);
             });
         });

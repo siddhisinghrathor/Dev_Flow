@@ -145,9 +145,9 @@ export class GoalService {
         const goal = await this.getGoalById(userId, goalId);
 
         const totalTasks = goal.tasks.length;
-        const completedTasks = goal.tasks.filter(t => t.status === 'completed').length;
-        const failedTasks = goal.tasks.filter(t => t.status === 'failed').length;
-        const pendingTasks = goal.tasks.filter(t => t.status === 'planned').length;
+        const completedTasks = goal.tasks.filter((t: any) => t.status === 'completed').length;
+        const failedTasks = goal.tasks.filter((t: any) => t.status === 'failed').length;
+        const pendingTasks = goal.tasks.filter((t: any) => t.status === 'planned').length;
 
         const daysRemaining = Math.ceil(
             (new Date(goal.targetDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
