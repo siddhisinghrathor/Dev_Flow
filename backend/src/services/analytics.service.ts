@@ -136,7 +136,7 @@ export class AnalyticsService {
         // Group by date
         const heatmap: Record<string, number> = {};
 
-        tasks.forEach(task => {
+        tasks.forEach((task: any) => {
             if (task.completedAt) {
                 const date = task.completedAt.toISOString().split('T')[0];
                 heatmap[date] = (heatmap[date] || 0) + 1;

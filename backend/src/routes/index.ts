@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import authRoutes from './auth.routes';
 import taskRoutes from './task.routes';
 import goalRoutes from './goal.routes';
@@ -21,7 +21,7 @@ router.use('/user', userRoutes);
 router.use('/notifications', notificationRoutes);
 
 // Health check
-router.get('/health', (_req, res) => {
+router.get('/health', (_req: Request, res: Response) => {
     res.status(200).json({
         success: true,
         message: 'Server is healthy',

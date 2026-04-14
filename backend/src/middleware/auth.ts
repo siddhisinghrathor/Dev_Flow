@@ -7,6 +7,10 @@ import { prisma } from '../config/database';
 export interface AuthRequest extends Request {
     userId?: string;
     user?: any;
+    params: any;
+    body: any;
+    query: any;
+    headers: any;
 }
 
 export const authenticate = async (
