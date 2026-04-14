@@ -12,23 +12,28 @@ import {
   Zap,
   CheckCircle2,
   TrendingUp,
-  Calendar,
+  Calendar as CalendarIcon,
   AlertTriangle,
-  Plus,
   Play,
   Pause,
   Clock,
   ArrowRight,
   ListMusic,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import {
   format,
   startOfDay,
   isWithinInterval,
-  startOfWeek,
-  endOfWeek,
   addDays,
-  differenceInDays,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameMonth,
+  isSameDay,
+  addMonths,
+  subMonths,
 } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
@@ -40,9 +45,11 @@ export const Dashboard = () => {
     activeTimer,
     startTimer,
     pauseTimer,
+    resumeTimer,
     stopTimer,
     getEffectiveElapsed,
-    dailyLogs,
+    dashboardStats,
+    fetchDashboardStats,
   } = useTaskStore();
   const { preferences, goals } = useAppStore();
   const { playlists, activePlaylistId } = usePlaylistStore();
@@ -54,8 +61,11 @@ export const Dashboard = () => {
   const [elapsed, setElapsed] = useState(0);
 
   const today = useMemo(() => startOfDay(new Date()), []);
-  const weekStart = useMemo(() => startOfWeek(today), [today]);
-  const weekEnd = useMemo(() => endOfWeek(today), [today]);
+
+  // Refresh dashboard stats when Dashboard mounts or tasks change
+  useEffect(() => {
+    fetchDashboardStats();
+  }, [tasks.length, fetchDashboardStats]);
 
   // Live Timer Update
   useEffect(() => {
@@ -76,66 +86,51 @@ export const Dashboard = () => {
     [tasks, activeTimer]
   );
 
-  const stats = useMemo(() => {
-    const todayTasks = tasks.filter((t) =>
+  // Today's tasks for the quick list (local filter is fine here)
+  const todayTasks = useMemo(() => {
+    return tasks.filter((t) =>
       t.dueDate
         ? isWithinInterval(new Date(t.dueDate), { start: today, end: today })
         : isWithinInterval(new Date(t.createdAt), { start: today, end: today })
     );
+  }, [tasks, today]);
 
-    const weekTasks = tasks.filter((t) =>
-      t.dueDate
-        ? isWithinInterval(new Date(t.dueDate), { start: weekStart, end: weekEnd })
-        : isWithinInterval(new Date(t.createdAt), { start: weekStart, end: weekEnd })
-    );
-
-    const todayCompleted = todayTasks.filter((t) => t.status === 'completed').length;
-    const weekCompleted = weekTasks.filter((t) => t.status === 'completed').length;
-
-    const todayProgress = todayTasks.length > 0 ? (todayCompleted / todayTasks.length) * 100 : 0;
-    const weekProgress =
-      preferences.weeklyTarget > 0 ? (weekCompleted / preferences.weeklyTarget) * 100 : 0;
-
-    // Dynamic Streak calculation
-    let streak = 0;
-    const sortedLogs = [...dailyLogs].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-    let checkDate = today;
-    for (const log of sortedLogs) {
-      if (differenceInDays(checkDate, new Date(log.date)) <= 1) {
-        if (log.completedTaskIds.length > 0) {
-          streak++;
-          checkDate = new Date(log.date);
-        } else if (
-          !isWithinInterval(new Date(), { start: startOfDay(new Date()), end: new Date() })
-        ) {
-          break;
-        }
-      } else {
-        break;
-      }
-    }
-
-    const productivityScore = Math.min(
-      100,
-      todayProgress * 0.4 + weekProgress * 0.6 + (streak > 0 ? 10 : 0)
-    );
+  // Use backend stats, with safe fallbacks
+  const stats = useMemo(() => {
+    const ds = dashboardStats;
+    const todayCompleted = ds?.today.completed ?? 0;
+    const weekCompleted = ds?.week.completed ?? 0;
+    const todayTotal = ds?.today.total ?? 0;
+    const todayProgress = todayTotal > 0 ? (todayCompleted / todayTotal) * 100 : 0;
+    const weekProgress = preferences.weeklyTarget > 0 ? (weekCompleted / preferences.weeklyTarget) * 100 : 0;
+    const streak = ds?.streak ?? 0;
+    const productivityScore = ds?.productivityScore ?? 0;
+    const allPendingTasks = tasks.filter((t) => t.status === 'planned' || t.status === 'suggested');
+    const pendingTodayTime = allPendingTasks.reduce((acc, t) => acc + (t.duration || 0), 0);
+    
+    // Calculate total time spent today from tasks
+    const timeSpentSecondsToday = tasks.reduce((acc, t) => {
+      return acc + (t.timeSpent || 0);
+    }, 0);
+    const timeSpentHoursToday = timeSpentSecondsToday / 3600;
+    const hoursLeftToGoal = Math.max(0, preferences.dailyTarget - timeSpentHoursToday);
 
     return {
       todayCompleted,
-      todayTotal: todayTasks.length,
+      todayTotal,
       todayProgress,
       weekCompleted,
       weekProgress,
       productivityScore,
       streak,
-      pendingToday: todayTasks.filter((t) => t.status === 'planned' || t.status === 'suggested')
-        .length,
-      failedToday: todayTasks.filter((t) => t.status === 'failed').length,
+      pendingToday: allPendingTasks.length,
+      pendingTodayTime,
+      hoursLeftToGoal,
+      failedToday: ds?.today.failed ?? 0,
       todayTasks,
+      pendingTodayTasks: allPendingTasks,
     };
-  }, [tasks, today, weekStart, weekEnd, preferences, dailyLogs]);
+  }, [dashboardStats, preferences, todayTasks, tasks]);
 
   const smartTip = useMemo(() => {
     if (stats.todayProgress >= 100)
@@ -175,7 +170,7 @@ export const Dashboard = () => {
         <KPIItem
           title="Weekly Target"
           value={`${stats.weekCompleted} / ${preferences.weeklyTarget}`}
-          icon={<Calendar className="text-blue-500" />}
+          icon={<CalendarIcon className="text-blue-500" />}
           progress={stats.weekProgress}
           label="tasks done this week"
         />
@@ -237,7 +232,7 @@ export const Dashboard = () => {
                         </Button>
                       ) : (
                         <Button
-                          onClick={() => startTimer(activeTask.id)}
+                          onClick={() => resumeTimer()}
                           className="flex-1 gap-2"
                           variant="primary"
                         >
@@ -251,7 +246,10 @@ export const Dashboard = () => {
                         <Zap size={18} /> Focus Mode
                       </Button>
                       <Button
-                        onClick={() => stopTimer(true)}
+                        onClick={async () => {
+                          await stopTimer(true);
+                          fetchDashboardStats();
+                        }}
                         className="flex-1 gap-2 bg-green-600 text-white hover:bg-green-700"
                       >
                         <CheckCircle2 size={18} /> Complete
@@ -335,8 +333,8 @@ export const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
+          <div className="grid gap-6 md:grid-cols-2 items-stretch">
+            <Card className="flex flex-col h-full">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase text-muted-foreground">
                   <Target size={16} /> Active Long-Term Goal
@@ -378,13 +376,13 @@ export const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="flex flex-col h-full">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase text-muted-foreground">
                   <TrendingUp size={16} /> Consistency Tip
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="flex flex-col justify-between flex-grow space-y-3">
                 <p className="text-sm font-medium">{smartTip}</p>
                 <div className="flex items-start gap-2 rounded-lg border border-orange-100 bg-orange-50 p-3 dark:border-orange-900/30 dark:bg-orange-950/20">
                   <AlertTriangle size={16} className="mt-0.5 text-orange-500" />
@@ -399,57 +397,26 @@ export const Dashboard = () => {
         </div>
 
         <div className="space-y-6">
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground/60">
-                Quick Launch
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-2">
-              <ActionButton
-                icon={<Plus size={18} />}
-                label="Add Task"
-                color="text-green-500"
-                onClick={() => setIsAddTaskOpen(true)}
-              />
-              <ActionButton
-                icon={<Zap size={18} />}
-                label="Sprint"
-                color="text-orange-500"
-                onClick={() => {
-                  const nextTask = stats.todayTasks.find((t) => t.status === 'planned');
-                  if (nextTask) startTimer(nextTask.id);
-                }}
-              />
-              <ActionButton
-                icon={<Target size={18} />}
-                label="Set Goal"
-                color="text-purple-500"
-                onClick={() => setIsSetGoalOpen(true)}
-              />
-              <ActionButton
-                icon={<Calendar size={18} />}
-                label="Playlist"
-                color="text-blue-500"
-                onClick={() => setIsPlaylistOpen(true)}
-              />
-            </CardContent>
-          </Card>
+          <CalendarCard />
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-bold uppercase text-muted-foreground">
-                Today's Focus
-              </CardTitle>
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-bold uppercase text-muted-foreground">
+                  Today's Focus
+                </CardTitle>
+                <div className="flex gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                  <span>{Math.floor(stats.pendingTodayTime / 60)}h {stats.pendingTodayTime % 60}m pending</span>
+                  <span>•</span>
+                  <span className="text-primary-500">{stats.hoursLeftToGoal.toFixed(1)}h to goal</span>
+                </div>
+              </div>
               <span className="text-[10px] font-black bg-primary-50 text-primary-600 px-2 py-1 rounded-full uppercase tracking-tighter">
                 {stats.pendingToday} Pending
               </span>
             </CardHeader>
             <CardContent className="space-y-3">
-              {stats.todayTasks
-                .filter((t) => t.status === 'planned' || t.status === 'suggested')
-                .slice(0, 5)
-                .map((task) => (
+              {stats.pendingTodayTasks.map((task) => (
                   <div
                     key={task.id}
                     className="group flex items-center justify-between rounded-xl p-3 bg-accent/5 transition-all hover:bg-accent/20 border border-transparent hover:border-accent"
@@ -543,15 +510,16 @@ export const Dashboard = () => {
 };
 
 const QuickAddTaskModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
-  const { addTask } = useTaskStore();
+  const { addTask, fetchDashboardStats } = useTaskStore();
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<Category>('general');
   const [priority, setPriority] = useState<Priority>('medium');
   const [duration, setDuration] = useState(25);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!title.trim()) return;
-    addTask({ title, category, priority, recurrence: 'none', duration });
+    await addTask({ title, category, priority, recurrence: 'none', duration });
+    fetchDashboardStats();
     setTitle('');
     onClose();
   };
@@ -624,14 +592,15 @@ const QuickAddTaskModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
 const SetGoalModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { addGoal } = useAppStore();
+  const { fetchDashboardStats } = useTaskStore();
   const [title, setTitle] = useState('');
   const [type, setType] = useState<'7-days' | '14-days' | '30-days' | 'custom'>('7-days');
   const [category, setCategory] = useState<Category>('general');
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!title.trim()) return;
     const days = type === '7-days' ? 7 : type === '14-days' ? 14 : 30;
-    addGoal({
+    await addGoal({
       title,
       type,
       category,
@@ -639,6 +608,7 @@ const SetGoalModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
       targetDate: addDays(new Date(), days).toISOString(),
       tasks: [],
     });
+    fetchDashboardStats();
     setTitle('');
     onClose();
   };
@@ -792,12 +762,69 @@ const KPIItem = ({ title, value, icon, progress, label }: any) => (
   </Card>
 );
 
-const ActionButton = ({ icon, label, color, onClick }: any) => (
-  <button
-    onClick={onClick}
-    className="group pointer-events-auto flex flex-col items-center justify-center rounded-xl border bg-card p-4 transition-all hover:bg-accent hover:shadow-inner"
-  >
-    <div className={cn('mb-2 transition-transform group-hover:scale-110', color)}>{icon}</div>
-    <span className="text-[10px] font-bold uppercase text-muted-foreground">{label}</span>
-  </button>
-);
+
+
+const CalendarCard = () => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(monthStart);
+  const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const today = startOfDay(new Date());
+
+  const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
+  const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
+
+  const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+  return (
+    <Card className="overflow-hidden bg-accent/5">
+      <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-accent/10">
+        <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/40">
+          {format(currentDate, 'MMMM yyyy')}
+        </CardTitle>
+        <div className="flex gap-2">
+          <button onClick={prevMonth} className="hover:text-primary-500 transition-colors">
+            <ChevronLeft size={16} />
+          </button>
+          <button onClick={nextMonth} className="hover:text-primary-500 transition-colors">
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      </CardHeader>
+      <CardContent className="p-6">
+        <div className="grid grid-cols-7 gap-1 text-center">
+          {weekDays.map((day) => (
+            <div key={day} className="text-[10px] font-black text-muted-foreground/20 uppercase mb-2">
+              {day}
+            </div>
+          ))}
+          {Array.from({ length: monthStart.getDay() }).map((_, i) => (
+            <div key={`empty-${i}`} />
+          ))}
+          {calendarDays.map((day) => {
+            const isToday = isSameDay(day, today);
+            return (
+              <div
+                key={day.toString()}
+                className={cn(
+                  "flex aspect-square items-center justify-center rounded-lg text-xs font-bold transition-all relative group cursor-default",
+                  isToday ? "bg-primary-500 text-white shadow-lg shadow-primary-500/20" : "hover:bg-accent/50",
+                  !isSameMonth(day, monthStart) && "opacity-10"
+                )}
+              >
+                {format(day, 'd')}
+                {isToday && (
+                  <motion.div
+                    layoutId="today-indicator"
+                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-white"
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+

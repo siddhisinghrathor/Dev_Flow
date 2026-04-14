@@ -42,7 +42,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
     persona: 'fullstack',
     dailyTarget: 3,
     weeklyTarget: 15,
-    theme: 'system',
+    theme: 'dark',
     notificationsEnabled: true,
     autoCompleteOnTimerEnd: false,
     soundEnabled: true,

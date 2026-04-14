@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Layout } from './components/layout/Layout';
 import { TaskList } from './features/tasks/TaskList';
 import { Heatmap } from './features/heatmap/Heatmap';
@@ -11,16 +11,17 @@ import { useTaskStore } from './store/useTaskStore';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/Card';
 import { DailyPlanGenerator } from './features/planner/DailyPlanGenerator';
 import { NotificationManager } from './features/notifications/NotificationManager';
-import { useEffect } from 'react';
 import { useAuthStore } from './store/useAuthStore';
 import { AuthForm } from './features/auth/AuthForm';
 import { useAppStore } from './store/useAppStore';
 import { usePlaylistStore } from './store/usePlaylistStore';
+import { subscribeToEvent, unsubscribeFromEvent, initiateSocketConnection, disconnectSocket } from './lib/socket';
 
 function App() {
   const fetchTasks = useTaskStore(state => state.fetchTasks);
   const fetchActiveTimer = useTaskStore(state => state.fetchActiveTimer);
   const fetchDailyLogs = useTaskStore(state => state.fetchDailyLogs);
+  const fetchDashboardStats = useTaskStore(state => state.fetchDashboardStats);
   const dailyLogs = useTaskStore(state => state.dailyLogs);
 
   const fetchGoals = useAppStore(state => state.fetchGoals);
@@ -30,10 +31,13 @@ function App() {
   const fetchPlaylists = usePlaylistStore(state => state.fetchPlaylists);
 
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const token = useAuthStore(state => state.token);
   const [activeTab, setActiveTab] = useState('dashboard');
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && token) {
+      initiateSocketConnection(token);
+
       fetchTasks();
       fetchGoals();
       fetchPreferences();
@@ -41,9 +45,30 @@ function App() {
       fetchActiveTimer();
       fetchPlaylists();
       fetchDailyLogs();
+      fetchDashboardStats();
+
+      // Subscribe to real-time events
+      const onTaskUpdated = () => { fetchTasks(); fetchDashboardStats(); };
+      const onTimerUpdated = () => { fetchActiveTimer(); fetchDashboardStats(); };
+      const onGoalUpdated = () => fetchGoals();
+      const onNotificationNew = () => fetchNotifications();
+
+      subscribeToEvent('task:updated', onTaskUpdated);
+      subscribeToEvent('timer:updated', onTimerUpdated);
+      subscribeToEvent('goal:updated', onGoalUpdated);
+      subscribeToEvent('notification:new', onNotificationNew);
+
+      return () => {
+        unsubscribeFromEvent('task:updated', onTaskUpdated);
+        unsubscribeFromEvent('timer:updated', onTimerUpdated);
+        unsubscribeFromEvent('goal:updated', onGoalUpdated);
+        unsubscribeFromEvent('notification:new', onNotificationNew);
+        disconnectSocket();
+      };
     }
   }, [
     isAuthenticated,
+    token,
     fetchTasks,
     fetchGoals,
     fetchPreferences,
@@ -51,6 +76,7 @@ function App() {
     fetchActiveTimer,
     fetchPlaylists,
     fetchDailyLogs,
+    fetchDashboardStats,
   ]);
 
   if (!isAuthenticated) {

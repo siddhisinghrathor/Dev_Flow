@@ -3,16 +3,27 @@ import { api } from '../lib/api';
 import type { Task, DailyLog, TaskStatus, TimerSession } from '../types';
 import { isSameDay, startOfDay, differenceInSeconds } from 'date-fns';
 
+export interface DashboardStats {
+  today: { total: number; completed: number; failed: number; completionRate: number };
+  week: { total: number; completed: number; completionRate: number };
+  month: { total: number; completed: number; completionRate: number };
+  activeGoals: number;
+  streak: number;
+  productivityScore: number;
+}
+
 interface TaskState {
   tasks: Task[];
   dailyLogs: DailyLog[];
   activeTimer: (TimerSession & { id?: string }) | null;
+  dashboardStats: DashboardStats | null;
   isLoading: boolean;
 
   // API Actions
   fetchTasks: () => Promise<void>;
   fetchDailyLogs: () => Promise<void>;
   fetchActiveTimer: () => Promise<void>;
+  fetchDashboardStats: () => Promise<void>;
 
   // Task Actions
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'status'>) => Promise<string>;
@@ -36,6 +47,7 @@ export const useTaskStore = create<TaskState>()((set, get) => ({
   tasks: [],
   dailyLogs: [],
   activeTimer: null,
+  dashboardStats: null,
   isLoading: false,
 
   fetchTasks: async () => {
@@ -63,6 +75,15 @@ export const useTaskStore = create<TaskState>()((set, get) => ({
       set({ dailyLogs: logs });
     } catch (error) {
       console.error('Failed to fetch daily logs', error);
+    }
+  },
+
+  fetchDashboardStats: async () => {
+    try {
+      const response = await api.get('/analytics/dashboard');
+      set({ dashboardStats: response.data.data });
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats', error);
     }
   },
 
