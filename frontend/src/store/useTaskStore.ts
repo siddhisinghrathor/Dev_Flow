@@ -14,6 +14,8 @@ export interface DashboardStats {
 
 interface TaskState {
   tasks: Task[];
+  playlistTasks: Task[];
+  activePlaylistData: any | null;
   dailyLogs: DailyLog[];
   activeTimer: (TimerSession & { id?: string }) | null;
   dashboardStats: DashboardStats | null;
@@ -45,6 +47,8 @@ interface TaskState {
 
 export const useTaskStore = create<TaskState>()((set, get) => ({
   tasks: [],
+  playlistTasks: [],
+  activePlaylistData: null,
   dailyLogs: [],
   activeTimer: null,
   dashboardStats: null,
@@ -54,7 +58,12 @@ export const useTaskStore = create<TaskState>()((set, get) => ({
     set({ isLoading: true });
     try {
       const response = await api.get('/tasks');
-      set({ tasks: response.data.data.tasks || response.data.data });
+      const { tasks, playlistTasks, activePlaylist } = response.data.data;
+      set({ 
+        tasks: tasks || [], 
+        playlistTasks: playlistTasks || [],
+        activePlaylistData: activePlaylist || null
+      });
     } finally {
       set({ isLoading: false });
     }

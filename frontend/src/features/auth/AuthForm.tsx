@@ -11,6 +11,7 @@ import {
   CardDescription,
 } from '../../components/ui/Card';
 import { LogIn, UserPlus, Loader2 } from 'lucide-react';
+import Service from '../../api/Service';
 
 export const AuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -31,10 +32,11 @@ export const AuthForm = () => {
     setError(null);
 
     try {
-      const endpoint = isLogin ? '/auth/login' : '/auth/register';
-      const response = await api.post(endpoint, formData);
-      const { user, accessToken, refreshToken } = response.data.data;
-
+      const response = isLogin 
+        ? await Service.login({ email: formData.email, password: formData.password })
+        : await Service.signup(formData);
+      
+      const { user, accessToken, refreshToken } = response.data;
       setAuth(user, accessToken, refreshToken);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Authentication failed. Please try again.');

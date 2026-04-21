@@ -10,9 +10,10 @@ import { motion } from 'framer-motion';
 interface TaskItemProps {
     task: Task;
     onClick: (task: Task) => void;
+    isPlaylistTask?: boolean;
 }
 
-export const TaskItem = ({ task, onClick }: TaskItemProps) => {
+export const TaskItem = ({ task, onClick, isPlaylistTask }: TaskItemProps) => {
     const { setTaskStatus, deleteTask } = useTaskStore();
 
     const priorityColors = {
@@ -49,7 +50,8 @@ export const TaskItem = ({ task, onClick }: TaskItemProps) => {
                 className={cn(
                     'transition-all duration-300 hover:shadow-lg hover:border-primary-500/30',
                     task.status === 'completed' && 'bg-muted/30 opacity-75',
-                    task.status === 'failed' && 'border-destructive/30 bg-destructive/5'
+                    task.status === 'failed' && 'border-destructive/30 bg-destructive/5',
+                    isPlaylistTask && 'border-primary-500/50 bg-primary-50/30 dark:bg-primary-950/10'
                 )}
             >
                 <CardContent className="flex items-center p-4">

@@ -4,14 +4,14 @@ import { TaskItem } from './TaskItem';
 import { TaskDetailPanel } from './TaskDetailPanel';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Plus, Search, LayoutGrid, List } from 'lucide-react';
+import { Plus, Search, LayoutGrid, List, Zap } from 'lucide-react';
 import type { Category, Priority, Task } from '../../types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useKeyboardShortcut } from '../../hooks/useKeyboardShortcut';
 import { cn } from '../../utils/cn';
 
 export const TaskList = () => {
-    const { tasks, addTask, activeTimer } = useTaskStore();
+    const { tasks, playlistTasks, addTask, activeTimer } = useTaskStore();
     const [title, setTitle] = useState('');
     const [category, setCategory] = useState<Category>('general');
     const [priority, setPriority] = useState<Priority>('medium');
@@ -66,7 +66,7 @@ export const TaskList = () => {
 
     const filteredTasks = sortedTasks.filter((t) => {
         const matchesCategory = filterCategory === 'all' ? true : t.category === filterCategory;
-        const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase());
+        const matchesSearch = (t.title || '').toLowerCase().includes((search || '').toLowerCase());
 
         let matchesStatus = true;
         if (filterStatus === 'active') matchesStatus = t.status === 'planned' || t.status === 'suggested';
@@ -187,11 +187,40 @@ export const TaskList = () => {
                 </div>
             </div>
 
-            {/* Task Grid/List */}
-            <div className={cn(
-                "grid gap-4",
-                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
-            )}>
+            {/* Playlist Tasks Section */}
+            {playlistTasks.length > 0 && filterStatus === 'active' && (
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2 px-1">
+                        <Zap size={18} className="text-primary-600 animate-pulse" />
+                        <h3 className="text-sm font-black uppercase tracking-[0.2em] text-primary-600">Today's Sprint (Playlist)</h3>
+                    </div>
+                    <div className={cn(
+                        "grid gap-4",
+                        viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                    )}>
+                        {playlistTasks.map((task) => (
+                            <TaskItem
+                                key={task.id}
+                                task={task}
+                                onClick={setSelectedTask}
+                                isPlaylistTask
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Backlog Section */}
+            <div className="space-y-4">
+                {playlistTasks.length > 0 && filterStatus === 'active' && (
+                    <div className="flex items-center gap-2 px-1 pt-4 border-t">
+                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Main Backlog</h3>
+                    </div>
+                )}
+                <div className={cn(
+                    "grid gap-4",
+                    viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                )}>
                 <AnimatePresence mode="popLayout">
                     {filteredTasks.length === 0 ? (
                         <motion.div
@@ -218,8 +247,9 @@ export const TaskList = () => {
                     )}
                 </AnimatePresence>
             </div>
+        </div>
 
-            {selectedTask && (
+        {selectedTask && (
                 <TaskDetailPanel task={selectedTask} onClose={() => setSelectedTask(null)} />
             )}
         </div>

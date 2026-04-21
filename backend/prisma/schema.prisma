@@ -1,0 +1,210 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Priority {
+  low
+  medium
+  high
+}
+
+enum Category {
+  frontend
+  backend
+  dsa
+  health
+  career
+  general
+}
+
+enum TaskStatus {
+  planned
+  completed
+  failed
+  skipped
+  suggested
+}
+
+enum Recurrence {
+  none
+  daily
+  weekly
+  custom
+}
+
+enum GoalType {
+  seven_days @map("7-days")
+  fourteen_days @map("14-days")
+  thirty_days @map("30-days")
+  custom
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  username      String
+  password      String
+  persona       String         @default("developer")
+  avatar        String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  tasks         Task[]
+  goals         Goal[]
+  playlists     Playlist[]
+  achievements  Achievement[]
+  dailyLogs     DailyLog[]
+  notifications Notification[]
+  preferences   UserPreferences?
+  timers        Timer[]
+
+  @@map("users")
+}
+
+model UserPreferences {
+  id                     String  @id @default(uuid())
+  userId                 String  @unique
+  user                   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyTarget            Int     @default(5)
+  weeklyTarget           Int     @default(30)
+  theme                  String  @default("dark")
+  notificationsEnabled   Boolean @default(true)
+  autoCompleteOnTimerEnd Boolean @default(false)
+  soundEnabled           Boolean @default(true)
+
+  @@map("user_preferences")
+}
+
+model Timer {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId          String
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  startTime       DateTime @default(now())
+  isRunning       Boolean  @default(true)
+  elapsedAtPause  Int      @default(0) // in seconds
+  durationLimit   Int?     // in minutes
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("timers")
+}
+
+model Task {
+  id               String     @id @default(uuid())
+  userId           String
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  category         Category   @default(general)
+  priority         Priority   @default(medium)
+  status           TaskStatus @default(planned)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  completedAt      DateTime?
+  dueDate          DateTime?
+  duration         Int?       // in minutes
+  recurrence       Recurrence @default(none)
+  timeSpent        Int        @default(0) // in seconds
+  
+  playlistId       String?
+  playlist         Playlist?  @relation(fields: [playlistId], references: [id], onDelete: SetNull)
+  playlistDayIndex Int?
+  
+  goalId           String?
+  goal             Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  timers           Timer[]
+
+  @@map("tasks")
+}
+
+model Goal {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  startDate   DateTime
+  targetDate  DateTime
+  category    Category @default(general)
+  progress    Int      @default(0) // 0-100
+  isCompleted Boolean  @default(false)
+  type        GoalType @default(custom)
+  
+  tasks       Task[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("goals")
+}
+
+enum PlaylistStatus {
+  draft
+  active
+  completed
+}
+
+model Playlist {
+  id           String         @id @default(uuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  category     Category       @default(general)
+  durationDays Int
+  isActive     Boolean        @default(false)
+  status       PlaylistStatus @default(draft)
+  startDate    DateTime?
+  currentDay   Int            @default(0)
+  tasks        Task[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@map("playlists")
+}
+
+model Achievement {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  date        DateTime @default(now())
+  type        String   // 'streak' | 'milestone' | 'skill'
+  icon        String?
+
+  @@map("achievements")
+}
+
+model DailyLog {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date             DateTime @default(now())
+  completedTaskIds String[]
+  failedTaskIds    String[]
+
+  @@map("daily_logs")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   // 'info' | 'success' | 'warning' | 'error'
+  timestamp DateTime @default(now())
+  read      Boolean  @default(false)
+
+  @@map("notifications")
+}

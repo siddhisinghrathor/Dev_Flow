@@ -48,6 +48,10 @@ export interface Playlist {
     description?: string;
     category: Category;
     durationDays: number;
+    isActive: boolean;
+    status: 'draft' | 'active' | 'completed';
+    startDate?: string;
+    currentDay: number;
     tasks: Task[];
 }
 

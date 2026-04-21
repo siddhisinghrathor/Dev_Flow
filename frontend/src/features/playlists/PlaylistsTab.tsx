@@ -72,8 +72,10 @@ export const PlaylistsTab = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {playlists.map(playlist => (
                     <Card key={playlist.id} className={cn(
-                        "group relative overflow-hidden transition-all duration-500 rounded-[32px] border-none shadow-xl",
-                        activePlaylistId === playlist.id ? "bg-zinc-950 text-white ring-4 ring-primary-500/20" : "bg-white text-foreground"
+                        "group relative overflow-hidden transition-all duration-500 rounded-[32px] border-2 shadow-xl",
+                        activePlaylistId === playlist.id 
+                            ? "bg-primary-600 text-white border-primary-400 ring-4 ring-primary-500/20"
+                            : "bg-card text-card-foreground border-accent"
                     )}>
                         <CardHeader className="p-8 pb-4">
                             <div className="flex justify-between items-start">
@@ -86,52 +88,64 @@ export const PlaylistsTab = () => {
                                     </span>
                                     <CardTitle className="text-2xl font-black leading-tight tracking-tight">{playlist.title}</CardTitle>
                                 </div>
+                                <div className="flex flex-col items-end gap-2">
+                                        <span className={cn(
+                                            "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest",
+                                            playlist.status === 'active' ? "bg-green-500 text-white animate-pulse" :
+                                            playlist.status === 'completed' ? "bg-blue-500 text-white" :
+                                            "bg-amber-500 text-white"
+                                        )}>
+                                            {playlist.status}
+                                        </span>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className={cn(
+                                                "h-10 w-10 rounded-xl transition-colors",
+                                                activePlaylistId === playlist.id ? "text-white/40 hover:text-red-400 hover:bg-white/10" : "text-muted-foreground hover:text-red-500"
+                                            )}
+                                            onClick={() => deletePlaylist(playlist.id)}
+                                        >
+                                            <Trash2 size={18} />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-8 pt-4 space-y-8">
+                                <p className={cn(
+                                    "text-sm font-medium line-clamp-2 min-h-[40px]",
+                                    activePlaylistId === playlist.id ? "text-white/60" : "text-muted-foreground"
+                                )}>
+                                    {playlist.description}
+                                </p>
+
+                                <div className="flex items-center gap-6">
+                                    <div className="flex items-center gap-2">
+                                        <div className={cn("p-2 rounded-lg", activePlaylistId === playlist.id ? "bg-white/10" : "bg-accent")}>
+                                            <Calendar size={16} />
+                                        </div>
+                                        <span className="text-sm font-bold">
+                                            {playlist.status === 'active' ? `Day ${playlist.currentDay + 1} of ${playlist.durationDays}` : `${playlist.durationDays} Days`}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className={cn("p-2 rounded-lg", activePlaylistId === playlist.id ? "bg-white/10" : "bg-accent")}>
+                                            <Zap size={16} />
+                                        </div>
+                                        <span className="text-sm font-bold">{playlist.tasks?.length || 0} Sprints</span>
+                                    </div>
+                                </div>
+
                                 <Button
-                                    size="icon"
-                                    variant="ghost"
+                                    variant={activePlaylistId === playlist.id ? "primary" : "outline"}
                                     className={cn(
-                                        "h-10 w-10 rounded-xl transition-colors",
-                                        activePlaylistId === playlist.id ? "text-white/40 hover:text-red-400 hover:bg-white/10" : "text-muted-foreground hover:text-red-500"
+                                        "w-full h-12 rounded-2xl gap-2 font-black uppercase tracking-widest text-xs transition-all",
+                                        activePlaylistId === playlist.id ? "bg-white text-zinc-950 hover:bg-white/90" : "border-2"
                                     )}
-                                    onClick={() => deletePlaylist(playlist.id)}
+                                    onClick={() => setActivePlaylist(playlist.id, playlist.status !== 'active')}
                                 >
-                                    <Trash2 size={18} />
+                                    {playlist.status === 'active' ? <><Clock size={16} /> Deactivate Protocol</> : <><Play size={16} /> Launch Protocol</>}
                                 </Button>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="p-8 pt-4 space-y-8">
-                            <p className={cn(
-                                "text-sm font-medium line-clamp-2 min-h-[40px]",
-                                activePlaylistId === playlist.id ? "text-white/60" : "text-muted-foreground"
-                            )}>
-                                {playlist.description}
-                            </p>
-
-                            <div className="flex items-center gap-6">
-                                <div className="flex items-center gap-2">
-                                    <div className={cn("p-2 rounded-lg", activePlaylistId === playlist.id ? "bg-white/10" : "bg-accent")}>
-                                        <Calendar size={16} />
-                                    </div>
-                                    <span className="text-sm font-bold">{playlist.durationDays} Days</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className={cn("p-2 rounded-lg", activePlaylistId === playlist.id ? "bg-white/10" : "bg-accent")}>
-                                        <Zap size={16} />
-                                    </div>
-                                    <span className="text-sm font-bold">{playlist.tasks?.length || 0} Sprints</span>
-                                </div>
-                            </div>
-
-                            <Button
-                                variant={activePlaylistId === playlist.id ? "primary" : "outline"}
-                                className={cn(
-                                    "w-full h-12 rounded-2xl gap-2 font-black uppercase tracking-widest text-xs transition-all",
-                                    activePlaylistId === playlist.id ? "bg-white text-zinc-950 hover:bg-white/90" : "border-2"
-                                )}
-                                onClick={() => setActivePlaylist(playlist.id)}
-                            >
-                                {activePlaylistId === playlist.id ? <><Clock size={16} /> Active Objective</> : <><Play size={16} /> Launch Protocol</>}
-                            </Button>
                         </CardContent>
                     </Card>
                 ))}
@@ -221,7 +235,7 @@ export const PlaylistsTab = () => {
                                     <h4 className="text-xl font-black italic">Day {currentDay} Logic</h4>
                                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Assigned Task Clusters</p>
                                 </div>
-                                <Button size="sm" variant="ghost" className="h-10 rounded-xl bg-white text-[10px] uppercase font-black text-primary-600 shadow-sm hover:bg-primary-50 px-4" onClick={handleAddTaskToDay}>
+                                <Button size="sm" variant="ghost" className="h-10 rounded-xl bg-card text-[10px] uppercase font-black text-primary-600 shadow-sm hover:bg-primary-50 px-4" onClick={handleAddTaskToDay}>
                                     <Plus size={16} /> Cluster Task
                                 </Button>
                             </div>

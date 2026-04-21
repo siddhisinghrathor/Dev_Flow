@@ -42,6 +42,8 @@ import type { Category, Priority } from '../../types';
 export const Dashboard = () => {
   const {
     tasks,
+    playlistTasks,
+    activePlaylistData,
     activeTimer,
     startTimer,
     pauseTimer,
@@ -50,6 +52,7 @@ export const Dashboard = () => {
     getEffectiveElapsed,
     dashboardStats,
     fetchDashboardStats,
+    fetchTasks,
   } = useTaskStore();
   const { preferences, goals } = useAppStore();
   const { playlists, activePlaylistId } = usePlaylistStore();
@@ -65,7 +68,8 @@ export const Dashboard = () => {
   // Refresh dashboard stats when Dashboard mounts or tasks change
   useEffect(() => {
     fetchDashboardStats();
-  }, [tasks.length, fetchDashboardStats]);
+    fetchTasks();
+  }, [tasks.length, fetchDashboardStats, fetchTasks]);
 
   // Live Timer Update
   useEffect(() => {
@@ -408,14 +412,42 @@ export const Dashboard = () => {
                 <div className="flex gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
                   <span>{Math.floor(stats.pendingTodayTime / 60)}h {stats.pendingTodayTime % 60}m pending</span>
                   <span>•</span>
-                  <span className="text-primary-500">{stats.hoursLeftToGoal.toFixed(1)}h to goal</span>
+                  <span className="text-primary-500">{activePlaylistData ? 'Playlist Session' : `${stats.hoursLeftToGoal.toFixed(1)}h to goal`}</span>
                 </div>
               </div>
               <span className="text-[10px] font-black bg-primary-50 text-primary-600 px-2 py-1 rounded-full uppercase tracking-tighter">
-                {stats.pendingToday} Pending
+                {stats.pendingToday + playlistTasks.length} Total
               </span>
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* Playlist Tasks First */}
+              {playlistTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="group flex items-center justify-between rounded-xl p-3 bg-primary-500/10 border border-primary-500/20 transition-all hover:bg-primary-500/20"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-5 w-5 rounded-full bg-primary-500 flex items-center justify-center text-white">
+                      <Zap size={10} fill="currentColor" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold tracking-tight">{task.title}</span>
+                      <span className="text-[8px] font-black text-primary-600 uppercase tracking-widest">Sprint Task</span>
+                    </div>
+                  </div>
+                  {!activeTimer && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 bg-white text-primary-600 shadow-sm"
+                      onClick={() => startTimer(task.id)}
+                    >
+                      <Play size={12} fill="currentColor" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+
               {stats.pendingTodayTasks.map((task) => (
                   <div
                     key={task.id}
@@ -437,7 +469,7 @@ export const Dashboard = () => {
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 bg-white"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 bg-card"
                         onClick={() => startTimer(task.id)}
                       >
                         <Play size={12} fill="currentColor" />
@@ -472,22 +504,22 @@ export const Dashboard = () => {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <h4 className="text-sm font-bold truncate pr-4">{activePlaylist.title}</h4>
-                    <span className="text-xs font-black">Day 1/{activePlaylist.durationDays}</span>
+                    <h4 className="text-sm font-bold truncate pr-4">{activePlaylistData.title}</h4>
+                    <span className="text-xs font-black">Day {activePlaylistData.currentDay + 1}/{activePlaylistData.durationDays}</span>
                   </div>
                   <div className="h-2 w-full rounded-full bg-accent overflow-hidden">
                     <div
                       className="h-full bg-primary-500"
-                      style={{ width: `${(1 / activePlaylist.durationDays) * 100}%` }}
+                      style={{ width: `${((activePlaylistData.currentDay + 1) / activePlaylistData.durationDays) * 100}%` }}
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-white p-3 rounded-xl border flex flex-col gap-1">
+                  <div className="bg-card/50 p-3 rounded-xl border flex flex-col gap-1">
                     <span className="text-[10px] font-black text-muted-foreground uppercase">Tasks Done</span>
                     <span className="text-lg font-black">{activePlaylist.tasks?.filter((t: any) => t.status === 'completed').length || 0}</span>
                   </div>
-                  <div className="bg-white p-3 rounded-xl border flex flex-col gap-1">
+                  <div className="bg-card/50 p-3 rounded-xl border flex flex-col gap-1">
                     <span className="text-[10px] font-black text-muted-foreground uppercase">Remaining</span>
                     <span className="text-lg font-black">{activePlaylist.tasks?.filter((t: any) => t.status === 'planned').length || 0}</span>
                   </div>

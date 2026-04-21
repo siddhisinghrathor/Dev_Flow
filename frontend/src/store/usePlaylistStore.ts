@@ -11,9 +11,9 @@ interface PlaylistState {
   fetchPlaylists: () => Promise<void>;
 
   // Actions
-  createPlaylist: (playlist: Omit<Playlist, 'id'>) => Promise<void>;
+  createPlaylist: (playlist: Omit<Playlist, 'id' | 'isActive' | 'status' | 'currentDay'>) => Promise<void>;
   deletePlaylist: (id: string) => Promise<void>;
-  setActivePlaylist: (id?: string) => Promise<void>;
+  setActivePlaylist: (id: string, active?: boolean) => Promise<void>;
 }
 
 export const usePlaylistStore = create<PlaylistState>()((set) => ({
@@ -45,8 +45,8 @@ export const usePlaylistStore = create<PlaylistState>()((set) => ({
     }));
   },
 
-  setActivePlaylist: async (id) => {
-    await api.patch(`/playlists/${id}/active`);
-    set({ activePlaylistId: id });
+  setActivePlaylist: async (id, active = true) => {
+    await api.patch(`/playlists/${id}/active`, { active });
+    set({ activePlaylistId: active ? id : undefined });
   },
 }));
